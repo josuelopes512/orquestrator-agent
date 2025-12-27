@@ -3,6 +3,9 @@ node_modules/
 
 # Build output
 dist/
+.venv/
+venv/
+hello_claude.py
 
 # IDE and editor
 .vscode/

@@ -9,5 +9,5 @@ objetivo: ensinar o claude code SDLC (OK)
 
 
 1. Construir a UI para o SDLC (In progress)
-2. Dar vida a UI do SDLC executando as skills e comandos ao arrastar os cards
+2. Dar vida a UI do SDLC executando as skills e comandos ao arrastar os cards (1/4)
 3. Ensinar o claude code a abrir páginas web e testar a aplicação 
