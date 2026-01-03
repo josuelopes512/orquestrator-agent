@@ -5,11 +5,12 @@ import { Board } from './components/Board/Board';
 import { Card } from './components/Card/Card';
 import { ProjectLoader } from './components/ProjectLoader/ProjectLoader';
 import { ProjectSwitcher } from './components/ProjectSwitcher';
+import { NewTaskButton } from './components/NewTaskButton/NewTaskButton';
 import { useAgentExecution } from './hooks/useAgentExecution';
 import { useWorkflowAutomation } from './hooks/useWorkflowAutomation';
 import { useChat } from './hooks/useChat';
 import Chat from './components/Chat/Chat';
-import ChatToggle from './components/ChatToggle/ChatToggle';
+import { TabNavigation } from './components/TabNavigation/TabNavigation';
 import * as cardsApi from './api/cards';
 import { getCurrentProject } from './api/projects';
 import styles from './App.module.css';
@@ -17,6 +18,7 @@ import styles from './App.module.css';
 function App() {
   const [cards, setCards] = useState<CardType[]>([]);
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
+  const [activeTab, setActiveTab] = useState<'kanban' | 'chat'>('kanban');
   const [isLoading, setIsLoading] = useState(true);
   const [isArchivedCollapsed, setIsArchivedCollapsed] = useState(false);
   const [isCanceladoCollapsed, setIsCanceladoCollapsed] = useState(false);
@@ -25,7 +27,7 @@ function App() {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const dragStartColumnRef = useRef<ColumnId | null>(null);
   const { executePlan, executeImplement, executeTest, executeReview, getExecutionStatus, registerCompletionCallback, executions, fetchLogsHistory } = useAgentExecution(initialExecutions);
-  const { state: chatState, sendMessage, toggleChat, closeChat } = useChat();
+  const { state: chatState, sendMessage, handleModelChange } = useChat();
 
   // Define moveCard and updateCardSpecPath BEFORE useWorkflowAutomation
   const moveCard = (cardId: string, newColumnId: ColumnId) => {
@@ -372,7 +374,13 @@ function App() {
     <div className={styles.app}>
       <header className={styles.header}>
         <h1 className={styles.title}>Board Kanban</h1>
+        <TabNavigation
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          chatUnreadCount={chatState.unreadCount}
+        />
         <div className={styles.projectActions}>
+          <NewTaskButton />
           <ProjectSwitcher
             currentProject={currentProject}
             onProjectSwitch={setCurrentProject}
@@ -384,55 +392,50 @@ function App() {
         </div>
       </header>
       <main className={styles.main}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
-          <Board
-            columns={COLUMNS}
-            cards={cards}
-            onAddCard={addCard}
-            onRemoveCard={removeCard}
-            onUpdateCard={updateCard}
-            getExecutionStatus={getExecutionStatus}
-            getWorkflowStatus={getWorkflowStatus}
-            onRunWorkflow={runWorkflow}
-            isArchivedCollapsed={isArchivedCollapsed}
-            onToggleArchivedCollapse={() => setIsArchivedCollapsed(!isArchivedCollapsed)}
-            isCanceladoCollapsed={isCanceladoCollapsed}
-            onToggleCanceladoCollapse={() => setIsCanceladoCollapsed(!isCanceladoCollapsed)}
-            fetchLogsHistory={fetchLogsHistory}
+        {activeTab === 'kanban' ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+          >
+            <Board
+              columns={COLUMNS}
+              cards={cards}
+              onAddCard={addCard}
+              onRemoveCard={removeCard}
+              onUpdateCard={updateCard}
+              getExecutionStatus={getExecutionStatus}
+              getWorkflowStatus={getWorkflowStatus}
+              onRunWorkflow={runWorkflow}
+              isArchivedCollapsed={isArchivedCollapsed}
+              onToggleArchivedCollapse={() => setIsArchivedCollapsed(!isArchivedCollapsed)}
+              isCanceladoCollapsed={isCanceladoCollapsed}
+              onToggleCanceladoCollapse={() => setIsCanceladoCollapsed(!isCanceladoCollapsed)}
+              fetchLogsHistory={fetchLogsHistory}
+            />
+            <DragOverlay>
+              {activeCard ? (
+                <Card
+                  card={activeCard}
+                  onRemove={() => {}}
+                  isDragging
+                />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        ) : (
+          <Chat
+            messages={chatState.session?.messages || []}
+            isLoading={chatState.isLoading}
+            error={chatState.error}
+            onSendMessage={sendMessage}
+            selectedModel={chatState.selectedModel}
+            onModelChange={handleModelChange}
           />
-          <DragOverlay>
-            {activeCard ? (
-              <Card
-                card={activeCard}
-                onRemove={() => {}}
-                isDragging
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+        )}
       </main>
-
-      {/* Chat Panel */}
-      <Chat
-        isOpen={chatState.isOpen}
-        onClose={closeChat}
-        messages={chatState.session?.messages || []}
-        isLoading={chatState.isLoading}
-        error={chatState.error}
-        onSendMessage={sendMessage}
-      />
-
-      {/* Chat Toggle Button */}
-      <ChatToggle
-        isOpen={chatState.isOpen}
-        onClick={toggleChat}
-      />
 
       <div id="modal-root" />
     </div>

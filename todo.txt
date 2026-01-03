@@ -22,7 +22,7 @@ esse novo card deve voltar para in-progress - - Precisa melhorar
 * Dar vida ao botão de criar PR
 * Ensinar o claude code a abrir páginas web e testar a aplicação
 * Não permitir arrastar para outras raias enquanto n tiver finalizado
-
+* Adicionar estatísticas para cada card
 
 
 

@@ -139,6 +139,12 @@ body {
   background-clip: text;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
 .projectActions {
   display: flex;
   align-items: center;

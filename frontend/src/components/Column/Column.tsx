@@ -1,7 +1,6 @@
 import { useDroppable } from '@dnd-kit/core';
 import { Card as CardType, Column as ColumnType, ColumnId, ExecutionStatus, WorkflowStatus, ExecutionHistory } from '../../types';
 import { Card } from '../Card/Card';
-import { AddCard } from '../AddCard/AddCard';
 import styles from './Column.module.css';
 
 interface ColumnProps {
@@ -37,8 +36,11 @@ export function Column({ column, cards, onAddCard, onRemoveCard, onUpdateCard, g
         onClick={isCollapsible ? onToggleCollapse : undefined}
         style={isCollapsible ? { cursor: 'pointer' } : undefined}
       >
-        <h2 className={styles.title}>{column.title}</h2>
-        <span className={styles.count}>{cards.length}</span>
+        <div className={styles.headerLeft}>
+          <h2 className={styles.title}>{column.title}</h2>
+          <span className={styles.count}>{cards.length}</span>
+        </div>
+
         {isCollapsible && (
           <span className={styles.collapseIndicator}>
             {isCollapsed ? '▶' : '▼'}
@@ -61,10 +63,6 @@ export function Column({ column, cards, onAddCard, onRemoveCard, onUpdateCard, g
             />
           ))}
         </div>
-      )}
-
-      {column.id === 'backlog' && !isCollapsed && (
-        <AddCard columnId={column.id} onAdd={onAddCard} />
       )}
     </div>
   );
