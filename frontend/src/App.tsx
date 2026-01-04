@@ -1,20 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
-import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { Card as CardType, ColumnId, COLUMNS, isValidTransition, ExecutionStatus, Project, WorkflowStatus, WorkflowStage } from './types';
-import { Board } from './components/Board/Board';
-import { Card } from './components/Card/Card';
-import { ProjectLoader } from './components/ProjectLoader/ProjectLoader';
-import { ProjectSwitcher } from './components/ProjectSwitcher';
 import { useAgentExecution } from './hooks/useAgentExecution';
 import { useWorkflowAutomation } from './hooks/useWorkflowAutomation';
 import { useChat } from './hooks/useChat';
-import Chat from './components/Chat/Chat';
-import ChatToggle from './components/ChatToggle/ChatToggle';
 import * as cardsApi from './api/cards';
 import { getCurrentProject } from './api/projects';
+import WorkspaceLayout, { ModuleType } from './layouts/WorkspaceLayout';
+import HomePage from './pages/HomePage';
+import KanbanPage from './pages/KanbanPage';
+import ChatPage from './pages/ChatPage';
+import SettingsPage from './pages/SettingsPage';
 import styles from './App.module.css';
 
 function App() {
+  const [currentView, setCurrentView] = useState<ModuleType>('dashboard');
   const [cards, setCards] = useState<CardType[]>([]);
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +25,7 @@ function App() {
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const dragStartColumnRef = useRef<ColumnId | null>(null);
   const { executePlan, executeImplement, executeTest, executeReview, getExecutionStatus, registerCompletionCallback, executions } = useAgentExecution(initialExecutions);
-  const { state: chatState, sendMessage, toggleChat, closeChat } = useChat();
+  const { state: chatState, sendMessage } = useChat();
 
   // Define moveCard and updateCardSpecPath BEFORE useWorkflowAutomation
   const moveCard = (cardId: string, newColumnId: ColumnId) => {
@@ -330,45 +330,21 @@ function App() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className={styles.app}>
-        <header className={styles.header}>
-          <h1 className={styles.title}>Board Kanban</h1>
-        </header>
-        <main className={styles.main}>
-          <p>Carregando cards...</p>
-        </main>
-      </div>
-    );
-  }
+  const renderView = () => {
+    switch (currentView) {
+      case 'dashboard':
+        return <HomePage cards={cards} onNavigate={setCurrentView} />;
 
-  return (
-    <div className={styles.app}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>Board Kanban</h1>
-        <div className={styles.projectActions}>
-          <ProjectSwitcher
-            currentProject={currentProject}
-            onProjectSwitch={setCurrentProject}
-          />
-          <ProjectLoader
-            currentProject={currentProject}
-            onProjectLoad={setCurrentProject}
-          />
-        </div>
-      </header>
-      <main className={styles.main}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
-          <Board
+      case 'kanban':
+        return (
+          <KanbanPage
             columns={COLUMNS}
             cards={cards}
+            activeCard={activeCard}
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
             onAddCard={addCard}
             onRemoveCard={removeCard}
             onUpdateCard={updateCard}
@@ -379,37 +355,46 @@ function App() {
             onToggleArchivedCollapse={() => setIsArchivedCollapsed(!isArchivedCollapsed)}
             isCanceladoCollapsed={isCanceladoCollapsed}
             onToggleCanceladoCollapse={() => setIsCanceladoCollapsed(!isCanceladoCollapsed)}
+            currentProject={currentProject}
+            onProjectSwitch={setCurrentProject}
+            onProjectLoad={setCurrentProject}
           />
-          <DragOverlay>
-            {activeCard ? (
-              <Card
-                card={activeCard}
-                onRemove={() => {}}
-                isDragging
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </main>
+        );
 
-      {/* Chat Panel */}
-      <Chat
-        isOpen={chatState.isOpen}
-        onClose={closeChat}
-        messages={chatState.session?.messages || []}
-        isLoading={chatState.isLoading}
-        error={chatState.error}
-        onSendMessage={sendMessage}
-      />
+      case 'chat':
+        return (
+          <ChatPage
+            messages={chatState.session?.messages || []}
+            isLoading={chatState.isLoading}
+            error={chatState.error}
+            onSendMessage={sendMessage}
+          />
+        );
 
-      {/* Chat Toggle Button */}
-      <ChatToggle
-        isOpen={chatState.isOpen}
-        onClick={toggleChat}
-      />
+      case 'settings':
+        return <SettingsPage />;
 
+      default:
+        return <HomePage cards={cards} onNavigate={setCurrentView} />;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className={styles.app}>
+        <div className={styles.loader}>
+          <div className={styles.loaderSpinner}></div>
+          <p>Carregando workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <WorkspaceLayout currentModule={currentView} onNavigate={setCurrentView}>
+      {renderView()}
       <div id="modal-root" />
-    </div>
+    </WorkspaceLayout>
   );
 }
 
