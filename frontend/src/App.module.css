@@ -1,46 +1,81 @@
 :root {
-  /* === COSMIC DARK THEME === */
+  /* === ZEN FLOW DESIGN SYSTEM === */
 
-  /* Background Layers */
-  --bg-deep: #0a0a0f;
-  --bg-base: #12121a;
-  --bg-elevated: #1a1a24;
-  --bg-surface: #222230;
-  --bg-hover: #2a2a3a;
+  /* Base - Tons neutros suaves */
+  --zen-white: #ffffff;
+  --zen-cream: #fafaf9;
+  --zen-light: #f5f5f4;
+  --zen-gray-50: #fafaf9;
+  --zen-gray-100: #e7e5e4;
+  --zen-gray-200: #d6d3d1;
+  --zen-gray-300: #a8a29e;
+  --zen-gray-400: #78716c;
+  --zen-gray-500: #57534e;
+  --zen-gray-600: #44403c;
+  --zen-gray-700: #292524;
+  --zen-black: #0c0a09;
 
-  /* Glass Effect */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-glow: rgba(0, 212, 255, 0.1);
+  /* Accent - Uma cor principal vibrante */
+  --zen-primary: #6366f1;
+  --zen-primary-light: #818cf8;
+  --zen-primary-dark: #4f46e5;
+  --zen-primary-subtle: rgba(99, 102, 241, 0.08);
+  --zen-primary-glow: rgba(99, 102, 241, 0.2);
+
+  /* Semantic */
+  --zen-success: #22c55e;
+  --zen-success-light: #86efac;
+  --zen-success-subtle: rgba(34, 197, 94, 0.1);
+  --zen-warning: #f59e0b;
+  --zen-warning-light: #fbbf24;
+  --zen-warning-subtle: rgba(245, 158, 11, 0.1);
+  --zen-error: #ef4444;
+  --zen-error-light: #f87171;
+  --zen-error-subtle: rgba(239, 68, 68, 0.1);
+  --zen-info: #3b82f6;
+  --zen-info-light: #60a5fa;
+  --zen-info-subtle: rgba(59, 130, 246, 0.1);
+
+  /* Backgrounds */
+  --bg-base: var(--zen-cream);
+  --bg-surface: var(--zen-white);
+  --bg-elevated: var(--zen-white);
+  --bg-hover: var(--zen-gray-50);
 
   /* Text Hierarchy */
-  --text-primary: #f0f0f5;
-  --text-secondary: #a0a0b0;
-  --text-muted: #606075;
-  --text-dim: #404055;
-
-  /* Accent Colors */
-  --accent-cyan: #00d4ff;
-  --accent-cyan-glow: rgba(0, 212, 255, 0.3);
-  --accent-cyan-subtle: rgba(0, 212, 255, 0.15);
-  --accent-purple: #a855f7;
-  --accent-green: #34d399;
-  --accent-amber: #fbbf24;
-  --accent-rose: #fb7185;
+  --text-primary: var(--zen-gray-700);
+  --text-secondary: var(--zen-gray-500);
+  --text-muted: var(--zen-gray-400);
+  --text-inverse: var(--zen-white);
 
   /* Borders */
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-hover: rgba(255, 255, 255, 0.15);
-  --border-glow: rgba(0, 212, 255, 0.4);
+  --border-subtle: var(--zen-gray-100);
+  --border-default: var(--zen-gray-200);
+  --border-hover: var(--zen-gray-300);
+  --border-accent: var(--zen-primary-light);
 
-  /* Shadows */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 20px var(--accent-cyan-glow);
-  --shadow-glow-sm: 0 0 10px var(--accent-cyan-glow);
+  /* Shadows - Minimalistas */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 40px -15px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 50px -20px rgba(0, 0, 0, 0.15), 0 8px 16px -8px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 10px 40px -15px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+
+  /* Typography */
+  --font-sans: 'Instrument Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Crimson Text', Georgia, serif;
+  --font-display: var(--font-sans);
+  --font-body: var(--font-sans);
+
+  /* Tipografia - Scale harmoniosa */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.125rem;    /* 18px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.5rem;     /* 24px */
+  --text-3xl: 1.875rem;   /* 30px */
+  --text-4xl: 2.25rem;    /* 36px */
 
   /* Spacing Scale */
   --space-1: 4px;
@@ -52,23 +87,31 @@
   --space-8: 32px;
   --space-10: 40px;
   --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
 
-  /* Border Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  /* Border Radius - Mais suaves */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --radius-xl: 20px;
+  --radius-2xl: 24px;
 
-  /* Typography */
-  --font-display: 'Outfit', sans-serif;
-  --font-body: 'Nunito Sans', sans-serif;
-
-  /* Transitions */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Transitions - Suaves e naturais */
+  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-fast: 150ms;
-  --duration-normal: 250ms;
-  --duration-slow: 400ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+
+  /* Legacy mappings para compatibilidade */
+  --accent-cyan: var(--zen-primary);
+  --accent-cyan-subtle: var(--zen-primary-subtle);
+  --accent-green: var(--zen-success);
+  --accent-amber: var(--zen-warning);
+  --accent-rose: var(--zen-error);
+  --accent-purple: var(--zen-primary-dark);
 }
 
 * {
@@ -78,20 +121,19 @@
 }
 
 html {
-  background: var(--bg-deep);
+  background: var(--bg-base);
 }
 
 body {
   font-family: var(--font-body);
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 212, 255, 0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 50%, rgba(168, 85, 247, 0.05), transparent),
-    var(--bg-deep);
+  background: var(--bg-base);
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: var(--text-base);
+  letter-spacing: -0.01em;
 }
 
 .app {
@@ -114,10 +156,10 @@ body {
 .loaderSpinner {
   width: 48px;
   height: 48px;
-  border: 4px solid var(--border-subtle);
-  border-top-color: var(--accent-cyan);
+  border: 4px solid var(--zen-gray-200);
+  border-top-color: var(--zen-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes spin {
@@ -126,29 +168,30 @@ body {
   }
 }
 
-/* Scrollbar Styling */
+/* Scrollbar Styling - Minimalista */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-elevated);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-hover);
-  border-radius: 4px;
-  border: 2px solid var(--bg-elevated);
+  background: var(--zen-gray-300);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-dim);
+  background: var(--zen-gray-400);
+  background-clip: padding-box;
 }
 
 /* Selection */
 ::selection {
-  background: var(--accent-cyan-subtle);
+  background: var(--zen-primary-subtle);
   color: var(--text-primary);
 }

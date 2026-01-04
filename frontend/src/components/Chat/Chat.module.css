@@ -3,38 +3,9 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: linear-gradient(180deg,
-    var(--bg-deep) 0%,
-    var(--bg-base) 100%);
+  background: var(--zen-white);
   position: relative;
   overflow: hidden;
-}
-
-/* Efeito de aurora de fundo */
-.chatContainer::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(0, 212, 255, 0.03) 0%,
-    rgba(168, 85, 247, 0.02) 40%,
-    transparent 70%
-  );
-  animation: cosmicRotate 30s linear infinite;
-  pointer-events: none;
-}
-
-@keyframes cosmicRotate {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .chatHeader {
@@ -43,22 +14,16 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-5) var(--space-6);
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid var(--glass-border);
+  background: var(--zen-white);
+  border-bottom: 1px solid var(--zen-gray-100);
   z-index: 10;
 }
 
 .chatTitle {
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(135deg,
-    var(--accent-cyan) 0%,
-    var(--accent-purple) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--text-primary);
   letter-spacing: -0.02em;
 }
 
@@ -73,29 +38,28 @@
   z-index: 1;
 }
 
-/* Scrollbar customizado com tema cósmico */
+/* Scrollbar minimalista */
 .messagesContainer::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
 }
 
 .messagesContainer::-webkit-scrollbar-track {
-  background: var(--bg-elevated);
-  border-radius: var(--radius-sm);
+  background: transparent;
 }
 
 .messagesContainer::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg,
-    var(--accent-cyan) 0%,
-    var(--accent-purple) 100%);
-  border-radius: var(--radius-sm);
-  border: 2px solid var(--bg-elevated);
+  background: var(--zen-gray-300);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .messagesContainer::-webkit-scrollbar-thumb:hover {
-  box-shadow: 0 0 10px var(--accent-cyan-glow);
+  background: var(--zen-gray-400);
+  background-clip: padding-box;
 }
 
-/* Empty State Melhorado */
+/* Empty State Minimalista */
 .emptyState {
   display: flex;
   flex-direction: column;
@@ -104,37 +68,24 @@
   height: 100%;
   text-align: center;
   padding: var(--space-8);
-  animation: floatAnimation 6s ease-in-out infinite;
 }
 
 .emptyIcon {
-  width: 120px;
-  height: 120px;
+  width: 80px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
-  background: linear-gradient(135deg,
-    rgba(0, 212, 255, 0.1) 0%,
-    rgba(168, 85, 247, 0.08) 100%);
-  border: 2px solid var(--glass-border);
+  font-size: 2.5rem;
+  background: var(--zen-primary-subtle);
+  border: 2px solid var(--zen-primary-light);
   border-radius: 50%;
   margin-bottom: var(--space-6);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);
-}
-
-@keyframes floatAnimation {
-  0%, 100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  color: var(--zen-primary);
 }
 
 .emptyText {
-  font-size: 1.25rem;
+  font-size: var(--text-xl);
   font-weight: 600;
   margin: 0 0 var(--space-3) 0;
   color: var(--text-primary);
@@ -142,33 +93,29 @@
 }
 
 .emptySubtext {
-  font-size: 0.95rem;
+  font-size: var(--text-base);
   margin: 0;
   color: var(--text-secondary);
 }
 
-/* Typing Indicator Aprimorado */
+/* Typing Indicator Minimalista */
 .typingIndicator {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: var(--space-3) var(--space-4);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: var(--zen-gray-100);
+  border: 1px solid var(--zen-gray-200);
   border-radius: var(--radius-lg);
-  backdrop-filter: blur(12px);
   width: fit-content;
 }
 
 .typingIndicator span {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: linear-gradient(135deg,
-    var(--accent-cyan) 0%,
-    var(--accent-purple) 100%);
-  animation: pulse 1.4s ease-in-out infinite;
-  box-shadow: 0 0 8px var(--accent-cyan-glow);
+  background: var(--zen-gray-400);
+  animation: typingPulse 1.4s ease-in-out infinite;
 }
 
 .typingIndicator span:nth-child(2) {
@@ -179,39 +126,36 @@
   animation-delay: 0.4s;
 }
 
-@keyframes pulse {
-  0%, 60%, 100% {
-    transform: scale(0.8);
+@keyframes typingPulse {
+  0%, 80%, 100% {
+    transform: scale(1);
     opacity: 0.5;
   }
-  30% {
-    transform: scale(1.2);
+  40% {
+    transform: scale(1.3);
     opacity: 1;
   }
 }
 
-/* Error Message */
+/* Error Message Minimalista */
 .errorMessage {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4);
-  background: linear-gradient(135deg,
-    rgba(251, 113, 133, 0.1) 0%,
-    rgba(220, 38, 38, 0.08) 100%);
-  border: 1px solid rgba(251, 113, 133, 0.3);
+  background: var(--zen-error-subtle);
+  border: 1px solid var(--zen-error-light);
   border-radius: var(--radius-lg);
-  color: var(--accent-rose);
-  font-size: 0.9rem;
-  backdrop-filter: blur(12px);
-  animation: slideIn 0.3s var(--ease-out);
+  color: var(--zen-error);
+  font-size: var(--text-sm);
+  animation: messageSlide 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .errorIcon {
-  font-size: 1.25rem;
+  font-size: var(--text-xl);
 }
 
-@keyframes slideIn {
+@keyframes messageSlide {
   from {
     opacity: 0;
     transform: translateY(10px);
@@ -253,9 +197,8 @@
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-  .chatContainer::before,
-  .emptyState,
-  .typingIndicator span {
+  .typingIndicator span,
+  .errorMessage {
     animation: none;
   }
 }
