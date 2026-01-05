@@ -1,56 +1,39 @@
 .card {
   position: relative;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  background: var(--zen-white);
+  border: 1px solid var(--zen-gray-100);
+  border-radius: 12px;
+  padding: 20px;
   cursor: grab;
-  transition: all var(--duration-normal) var(--ease-out);
-  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible;
 }
 
+/* Indicador de status sutil - lateral esquerda */
 .card::before {
   content: '';
   position: absolute;
-  top: 0;
   left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg,
-    var(--accent-cyan) 0%,
-    var(--accent-purple) 100%
-  );
-  opacity: 0;
-  transition: opacity var(--duration-normal) var(--ease-out);
-}
-
-.card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    rgba(0, 212, 255, 0.08),
-    transparent 60%
-  );
-  opacity: 0;
-  transition: opacity var(--duration-normal) var(--ease-out);
-  pointer-events: none;
+  top: 20px;
+  bottom: 20px;
+  width: 3px;
+  background: var(--zen-primary);
+  border-radius: 0 3px 3px 0;
+  transform: scaleY(0);
+  transform-origin: center;
+  transition: transform 0.3s ease;
 }
 
 .card:hover {
-  background: var(--bg-surface);
-  border-color: var(--border-default);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  box-shadow:
+    0 10px 40px -15px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  border-color: var(--zen-primary-light);
 }
 
 .card:hover::before {
-  opacity: 1;
-}
-
-.card:hover::after {
-  opacity: 1;
+  transform: scaleY(1);
 }
 
 .card:active {
@@ -58,20 +41,21 @@
   transform: translateY(-1px);
 }
 
+/* Estado de drag mais refinado */
 .dragging {
-  background: var(--bg-surface);
-  border-color: var(--border-glow);
+  background: var(--zen-white);
+  border-color: var(--zen-primary);
   box-shadow:
-    var(--shadow-xl),
-    var(--shadow-glow);
-  transform: scale(1.03) rotate(1deg);
-  opacity: 0.95;
+    0 20px 50px -20px rgba(0, 0, 0, 0.15),
+    0 8px 16px -8px rgba(0, 0, 0, 0.08);
+  transform: scale(1.02) rotate(2deg);
+  opacity: 0.9;
   cursor: grabbing;
   z-index: 100;
 }
 
 .dragging::before {
-  opacity: 1;
+  transform: scaleY(1);
 }
 
 .content {
@@ -116,38 +100,38 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  color: var(--text-dim);
+  width: 32px;
+  height: 32px;
+  background: var(--zen-gray-50);
+  border: 1px solid var(--zen-gray-200);
+  border-radius: 8px;
+  color: var(--zen-gray-500);
   cursor: pointer;
   opacity: 0;
-  transform: scale(0.8);
-  transition: all var(--duration-fast) var(--ease-spring);
+  transform: translateY(-4px);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 2;
 }
 
 .card:hover .editButton {
   opacity: 1;
-  transform: scale(1);
+  transform: translateY(0);
 }
 
 .editButton:hover {
-  background: rgba(34, 211, 238, 0.15);
-  border-color: rgba(34, 211, 238, 0.3);
-  color: var(--accent-cyan);
-  transform: scale(1.1);
+  background: var(--zen-primary-subtle);
+  border-color: var(--zen-primary-light);
+  color: var(--zen-primary);
+  transform: translateY(-2px);
 }
 
 .editButton:active {
-  transform: scale(0.95);
+  transform: translateY(0);
 }
 
 .editButton svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 .removeButton {
@@ -157,67 +141,70 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  color: var(--text-dim);
+  width: 32px;
+  height: 32px;
+  background: var(--zen-gray-50);
+  border: 1px solid var(--zen-gray-200);
+  border-radius: 8px;
+  color: var(--zen-gray-500);
   cursor: pointer;
   opacity: 0;
-  transform: scale(0.8);
-  transition: all var(--duration-fast) var(--ease-spring);
+  transform: translateY(-4px);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 2;
 }
 
 .card:hover .removeButton {
   opacity: 1;
-  transform: scale(1);
+  transform: translateY(0);
 }
 
 .removeButton:hover {
-  background: rgba(251, 113, 133, 0.15);
-  border-color: rgba(251, 113, 133, 0.3);
-  color: var(--accent-rose);
-  transform: scale(1.1);
+  background: var(--zen-error-subtle);
+  border-color: var(--zen-error-light);
+  color: var(--zen-error);
+  transform: translateY(-2px);
 }
 
 .removeButton:active {
-  transform: scale(0.95);
+  transform: translateY(0);
 }
 
 .removeButton svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
-/* Execution Status Styles */
+/* Execution Status Styles - Minimalista */
 .statusRunning {
-  border-color: var(--accent-amber);
+  border-color: var(--zen-warning);
   animation: pulse 2s infinite;
 }
 
 .statusRunning::before {
-  background: var(--accent-amber);
+  background: var(--zen-warning);
   opacity: 1;
+  transform: scaleY(1);
 }
 
 .statusSuccess {
-  border-color: var(--accent-emerald);
+  border-color: var(--zen-success);
 }
 
 .statusSuccess::before {
-  background: var(--accent-emerald);
+  background: var(--zen-success);
   opacity: 1;
+  transform: scaleY(1);
 }
 
 .statusError {
-  border-color: var(--accent-rose);
+  border-color: var(--zen-error);
 }
 
 .statusError::before {
-  background: var(--accent-rose);
+  background: var(--zen-error);
   opacity: 1;
+  transform: scaleY(1);
 }
 
 .executionStatus {
@@ -228,21 +215,22 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: var(--space-1) var(--space-2);
-  font-size: 0.7rem;
+  padding: 6px 10px;
+  font-size: var(--text-xs);
   font-weight: 500;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--zen-gray-100);
   color: var(--text-secondary);
+  border: 1px solid var(--zen-gray-200);
 }
 
 .spinner {
   width: 10px;
   height: 10px;
-  border: 2px solid rgba(251, 191, 36, 0.3);
-  border-top-color: var(--accent-amber);
+  border: 2px solid var(--zen-warning-subtle);
+  border-top-color: var(--zen-warning);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes spin {
@@ -250,12 +238,12 @@
 }
 
 .checkIcon {
-  color: var(--accent-emerald);
+  color: var(--zen-success);
   font-weight: bold;
 }
 
 .errorIcon {
-  color: var(--accent-rose);
+  color: var(--zen-error);
   font-weight: bold;
 }
 
@@ -272,22 +260,23 @@
   align-items: center;
   gap: 4px;
   margin-top: 8px;
-  padding: 4px 10px;
-  background: rgba(34, 211, 238, 0.1);
-  border: 1px solid rgba(34, 211, 238, 0.3);
+  padding: 6px 12px;
+  background: var(--zen-primary-subtle);
+  border: 1px solid var(--zen-primary-light);
   border-radius: var(--radius-sm);
-  color: var(--accent-cyan);
-  font-size: 0.7rem;
+  color: var(--zen-primary);
+  font-size: var(--text-xs);
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 5;
 }
 
 .viewLogsButton:hover {
-  background: rgba(34, 211, 238, 0.2);
-  border-color: rgba(34, 211, 238, 0.5);
+  background: rgba(99, 102, 241, 0.12);
+  border-color: var(--zen-primary);
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
 .viewLogsButton:active {
@@ -301,18 +290,21 @@
 }
 
 .statusRunning .statusBadge {
-  background: rgba(251, 191, 36, 0.15);
-  color: var(--accent-amber);
+  background: var(--zen-warning-subtle);
+  border-color: var(--zen-warning-light);
+  color: var(--zen-warning);
 }
 
 .statusSuccess .statusBadge {
-  background: rgba(52, 211, 153, 0.15);
-  color: var(--accent-emerald);
+  background: var(--zen-success-subtle);
+  border-color: var(--zen-success-light);
+  color: var(--zen-success);
 }
 
 .statusError .statusBadge {
-  background: rgba(251, 113, 133, 0.15);
-  color: var(--accent-rose);
+  background: var(--zen-error-subtle);
+  border-color: var(--zen-error-light);
+  color: var(--zen-error);
 }
 
 @keyframes pulse {
@@ -324,93 +316,95 @@
   }
 }
 
-/* Run Button Styles */
+/* Run Button Styles - Minimalista */
 .runButton {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
-  padding: 6px 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  bottom: 12px;
+  right: 12px;
+  padding: 8px 14px;
+  background: var(--zen-primary);
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 4px;
-  transition: all 0.2s ease;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 10;
   opacity: 1;
   transform: scale(1);
-  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
 }
 
 .runButton:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  background: var(--zen-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
 .runButton:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0);
 }
 
 .runButton svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
-/* Create PR Button Styles */
+/* Create PR Button Styles - Minimalista */
 .createPrButton {
   position: absolute;
-  top: 8px;
-  right: 40px;
-  padding: 4px 8px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  top: 12px;
+  right: 52px;
+  padding: 6px 12px;
+  background: var(--zen-success);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--text-xs);
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 4px;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 10;
   opacity: 0;
-  transform: scale(0.8);
+  transform: translateY(-4px);
 }
 
 .card:hover .createPrButton {
   opacity: 1;
-  transform: scale(1);
+  transform: translateY(0);
 }
 
 .createPrButton:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+  background: #16a34a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
 }
 
 .createPrButton svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Workflow Progress Styles */
 .workflowProgress {
   margin-top: 8px;
   padding: 6px 10px;
-  background: rgba(102, 126, 234, 0.1);
+  background: var(--zen-primary-subtle);
   border-radius: 4px;
-  border-left: 3px solid #667eea;
+  border-left: 3px solid var(--zen-primary);
 }
 
 .progressBadge {
   font-size: 12px;
   font-weight: 500;
-  color: #667eea;
+  color: var(--zen-primary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -419,16 +413,16 @@
 /* Archived Card Styles */
 .archived {
   opacity: 0.6;
-  border-left: 4px solid #9ca3af;
-  background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+  border-left: 4px solid var(--zen-gray-400);
+  background: var(--bg-surface);
 }
 
 .archivedBadge {
   position: absolute;
   top: 8px;
   right: 40px;
-  background: #6b7280;
-  color: white;
+  background: var(--zen-gray-500);
+  color: var(--text-inverse);
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
@@ -576,11 +570,11 @@
   gap: 6px;
   padding: 8px 12px;
   margin-top: var(--space-2);
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: var(--zen-error-subtle);
+  border: 1px solid var(--zen-error-light);
   border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 500;
-  color: #ef4444;
+  color: var(--zen-error);
 }
 

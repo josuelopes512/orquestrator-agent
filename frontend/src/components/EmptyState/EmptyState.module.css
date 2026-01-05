@@ -1,0 +1,122 @@
+/* EmptyState - Componente minimalista e inspirador */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12);
+  text-align: center;
+  min-height: 240px;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.emptyIcon {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--zen-primary-subtle);
+  border: 2px solid var(--zen-primary-light);
+  border-radius: 50%;
+  margin-bottom: var(--space-6);
+  animation: springIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation-delay: 0.1s;
+  animation-fill-mode: backwards;
+}
+
+@keyframes springIn {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  75% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.iconEmoji {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.emptyTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 var(--space-2) 0;
+  letter-spacing: -0.01em;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-delay: 0.2s;
+  animation-fill-mode: backwards;
+}
+
+.emptyMessage {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-6) 0;
+  max-width: 280px;
+  line-height: 1.6;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-delay: 0.3s;
+  animation-fill-mode: backwards;
+}
+
+.emptyAction {
+  padding: 10px 20px;
+  background: var(--zen-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  animation-delay: 0.4s;
+  animation-fill-mode: backwards;
+}
+
+.emptyAction:hover {
+  background: var(--zen-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.emptyAction:active {
+  transform: translateY(0);
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .emptyState,
+  .emptyIcon,
+  .emptyTitle,
+  .emptyMessage,
+  .emptyAction {
+    animation: none;
+  }
+
+  .emptyAction:hover {
+    transform: none;
+  }
+}
