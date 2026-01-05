@@ -170,7 +170,6 @@ export function Card({ card, onRemove, onUpdateCard, isDragging = false, executi
             {card.branchName && (
               <BranchIndicator
                 branchName={card.branchName}
-                mergeStatus={card.mergeStatus || 'none'}
               />
             )}
           </div>

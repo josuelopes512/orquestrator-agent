@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 
 ColumnId = Literal["backlog", "plan", "implement", "test", "review", "done", "archived", "cancelado"]
 ModelType = Literal["opus-4.5", "sonnet-4.5", "haiku-4.5"]
-MergeStatus = Literal["none", "merging", "resolving", "merged", "failed"]
 
 
 class ActiveExecution(BaseModel):
@@ -68,7 +67,6 @@ class CardUpdate(BaseModel):
     # Campos para worktree isolation
     branch_name: Optional[str] = Field(None, alias="branchName")
     worktree_path: Optional[str] = Field(None, alias="worktreePath")
-    merge_status: Optional[MergeStatus] = Field(None, alias="mergeStatus")
 
     class Config:
         populate_by_name = True
@@ -106,7 +104,6 @@ class CardResponse(BaseModel):
     # Campos para worktree isolation
     branch_name: Optional[str] = Field(None, alias="branchName")
     worktree_path: Optional[str] = Field(None, alias="worktreePath")
-    merge_status: MergeStatus = Field("none", alias="mergeStatus")
 
     @property
     def is_finalized(self) -> bool:

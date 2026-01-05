@@ -1,9 +1,6 @@
 export type ColumnId = 'backlog' | 'plan' | 'implement' | 'test' | 'review' | 'done' | 'archived' | 'cancelado';
 export type ModelType = 'opus-4.5' | 'sonnet-4.5' | 'haiku-4.5';
 
-// Status de merge - IA resolve conflitos automaticamente
-export type MergeStatus = 'none' | 'merging' | 'resolving' | 'merged' | 'failed';
-
 export interface CardImage {
   id: string;
   filename: string;
@@ -39,7 +36,6 @@ export interface Card {
   // Campos para worktree isolation
   branchName?: string;
   worktreePath?: string;
-  mergeStatus: MergeStatus;
 }
 
 export interface Column {
@@ -167,5 +163,4 @@ export interface ActiveBranch {
   cardId: string;
   cardTitle: string;
   cardColumn: string;
-  mergeStatus: MergeStatus;
 }
