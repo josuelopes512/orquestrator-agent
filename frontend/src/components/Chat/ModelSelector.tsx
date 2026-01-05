@@ -75,6 +75,41 @@ export const AVAILABLE_MODELS: AIModel[] = [
     icon: '🤖',
     accent: 'openai',
     badge: 'OpenAI'
+  },
+  // Modelos Gemini
+  {
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    displayName: 'Gemini Pro',
+    provider: 'google',
+    maxTokens: 1000000,
+    description: 'Google\'s most capable multimodal model with long context',
+    performance: 'powerful',
+    icon: '🌟',
+    accent: 'google',
+    badge: 'Long Context'
+  },
+  {
+    id: 'gemini-1.5-flash',
+    name: 'Gemini 1.5 Flash',
+    displayName: 'Gemini Flash',
+    provider: 'google',
+    maxTokens: 1000000,
+    description: 'Fast and efficient model for quick tasks',
+    performance: 'fastest',
+    icon: '⚡',
+    accent: 'google'
+  },
+  {
+    id: 'gemini-1.0-pro',
+    name: 'Gemini 1.0 Pro',
+    displayName: 'Gemini 1.0',
+    provider: 'google',
+    maxTokens: 32000,
+    description: 'Balanced model for general tasks',
+    performance: 'balanced',
+    icon: '💎',
+    accent: 'google'
   }
 ];
 
