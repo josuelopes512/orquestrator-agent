@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 
 ColumnId = Literal["backlog", "plan", "implement", "test", "review", "done", "archived", "cancelado"]
-ModelType = Literal["opus-4.5", "sonnet-4.5", "haiku-4.5"]
+ModelType = Literal["opus-4.5", "sonnet-4.5", "haiku-4.5", "gemini-3-pro", "gemini-3-flash"]
 MergeStatus = Literal["none", "merging", "resolving", "merged", "failed"]
 
 
