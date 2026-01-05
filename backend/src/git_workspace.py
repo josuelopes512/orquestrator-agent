@@ -2,13 +2,9 @@
 
 import asyncio
 import time
-from asyncio import Lock
 from pathlib import Path
 from typing import Optional, List, Dict
-from dataclasses import dataclass, field
-
-# Lock global para operacoes de merge (evita race conditions)
-_merge_lock = Lock()
+from dataclasses import dataclass
 
 # Limite de worktrees simultaneos
 MAX_CONCURRENT_WORKTREES = 10
@@ -20,15 +16,6 @@ class WorktreeResult:
     success: bool
     worktree_path: Optional[str] = None
     branch_name: Optional[str] = None
-    error: Optional[str] = None
-
-
-@dataclass
-class MergeResult:
-    """Result of merge operation."""
-    success: bool
-    has_conflicts: bool = False
-    conflicted_files: List[str] = field(default_factory=list)
     error: Optional[str] = None
 
 
@@ -186,78 +173,6 @@ class GitWorkspaceManager:
             branch_name=branch_name
         )
 
-    async def merge_worktree(
-        self,
-        card_id: str,
-        branch_name: str,
-        target_branch: Optional[str] = None
-    ) -> MergeResult:
-        """
-        Faz merge da branch do card para a branch principal.
-        Usa lock para evitar race conditions entre multiplos merges.
-
-        Args:
-            card_id: ID do card
-            branch_name: Nome da branch a ser mergeada
-            target_branch: Branch destino (detecta automaticamente se nao especificado)
-
-        Returns:
-            MergeResult com status do merge
-        """
-        async with _merge_lock:
-            # Recuperar de estado inconsistente
-            await self.recover_state()
-
-            # Detectar branch destino
-            if not target_branch:
-                target_branch = await self._get_default_branch()
-
-            # 1. Checkout para a branch de destino
-            returncode, _, stderr = await self._run_git_command(
-                ["git", "checkout", target_branch]
-            )
-            if returncode != 0:
-                return MergeResult(
-                    success=False,
-                    error=f"Failed to checkout {target_branch}: {stderr}"
-                )
-
-            # 2. Pull para garantir que esta atualizado (opcional, ignora erro)
-            await self._run_git_command(
-                ["git", "pull", "origin", target_branch]
-            )
-
-            # 3. Tentar merge
-            returncode, stdout, stderr = await self._run_git_command(
-                ["git", "merge", branch_name, "--no-ff",
-                 "-m", f"Merge branch '{branch_name}' via agent workflow"]
-            )
-
-            # 4. Verificar conflitos
-            if returncode != 0:
-                if "CONFLICT" in stdout or "CONFLICT" in stderr:
-                    # Obter arquivos conflitados
-                    _, conflict_output, _ = await self._run_git_command(
-                        ["git", "diff", "--name-only", "--diff-filter=U"]
-                    )
-                    conflicted_files = [
-                        f.strip() for f in conflict_output.split('\n') if f.strip()
-                    ]
-
-                    # Abortar merge para nao deixar estado inconsistente
-                    await self._run_git_command(["git", "merge", "--abort"])
-
-                    return MergeResult(
-                        success=False,
-                        has_conflicts=True,
-                        conflicted_files=conflicted_files
-                    )
-
-                return MergeResult(success=False, error=f"Merge failed: {stderr}")
-
-            # Merge bem-sucedido
-            return MergeResult(success=True, has_conflicts=False)
-
     async def cleanup_worktree(
         self,
         card_id: str,
@@ -296,72 +211,6 @@ class GitWorkspaceManager:
                 print(f"Warning: Failed to delete branch: {stderr}")
 
         return True
-
-    async def get_conflict_diff(self, branch_name: str) -> Optional[str]:
-        """
-        Obtem diff entre branch do card e branch principal.
-
-        Args:
-            branch_name: Nome da branch do card
-
-        Returns:
-            Diff como string ou None
-        """
-        target_branch = await self._get_default_branch()
-
-        _, diff_output, _ = await self._run_git_command(
-            ["git", "diff", f"{target_branch}...{branch_name}"]
-        )
-
-        return diff_output if diff_output else None
-
-    async def resolve_conflict(
-        self,
-        branch_name: str,
-        resolution: Dict[str, str]
-    ) -> bool:
-        """
-        Resolve conflitos aplicando a resolucao fornecida.
-
-        Args:
-            branch_name: Nome da branch do card
-            resolution: Dict com {filepath: "ours"|"theirs"}
-
-        Returns:
-            True se resolucao bem-sucedida
-        """
-        async with _merge_lock:
-            await self.recover_state()
-
-            target_branch = await self._get_default_branch()
-
-            # Checkout e merge
-            await self._run_git_command(["git", "checkout", target_branch])
-            await self._run_git_command(
-                ["git", "merge", branch_name, "--no-ff"]
-            )
-
-            # Aplicar resolucoes
-            for filepath, strategy in resolution.items():
-                if strategy == "ours":
-                    await self._run_git_command(
-                        ["git", "checkout", "--ours", filepath]
-                    )
-                elif strategy == "theirs":
-                    await self._run_git_command(
-                        ["git", "checkout", "--theirs", filepath]
-                    )
-
-                # Adicionar arquivo resolvido
-                await self._run_git_command(["git", "add", filepath])
-
-            # Commit do merge
-            returncode, _, stderr = await self._run_git_command([
-                "git", "commit",
-                "-m", f"Merge branch '{branch_name}' (conflicts resolved)"
-            ])
-
-            return returncode == 0
 
     async def list_active_worktrees(self) -> List[Dict[str, str]]:
         """Lista todos os worktrees ativos."""

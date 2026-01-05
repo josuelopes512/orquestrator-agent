@@ -132,22 +132,10 @@ export function useWorkflowAutomation({
         return;
       }
 
-      // Tentar fazer merge antes de mover para done
-      const mergeResult = await handleCompletedReview(card.id);
-
-      if (mergeResult.success || !card.branchName) {
-        // Merge bem-sucedido ou card nao tem branch
-        await cardsApi.moveCard(card.id, 'done');
-        onCardMove(card.id, 'done');
-        await updateStatus('completed', 'done');
-      } else if (mergeResult.status === 'resolving') {
-        // IA esta resolvendo conflitos - manter em review
-        // O card sera movido para done automaticamente quando merge completar
-        await updateStatus('reviewing', 'review');
-      } else {
-        // Merge falhou
-        await updateStatus('error', 'review', mergeResult.error || 'Merge failed');
-      }
+      // Após review bem-sucedido, ir direto para DONE
+      await cardsApi.moveCard(card.id, 'done');
+      onCardMove(card.id, 'done');
+      await updateStatus('completed', 'done');
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -239,21 +227,10 @@ export function useWorkflowAutomation({
             break;
           }
 
-          // Tentar fazer merge antes de mover para done
-          const mergeResult1 = await handleCompletedReview(card.id);
-
-          if (mergeResult1.success || !card.branchName) {
-            // Merge bem-sucedido ou card nao tem branch
-            await cardsApi.moveCard(card.id, 'done');
-            onCardMove(card.id, 'done');
-            await updateStatus('completed', 'done');
-          } else if (mergeResult1.status === 'resolving') {
-            // IA esta resolvendo conflitos - manter em review
-            await updateStatus('reviewing', 'review');
-          } else {
-            // Merge falhou
-            await updateStatus('error', 'review', mergeResult1.error || 'Merge failed');
-          }
+          // Após review bem-sucedido, ir direto para DONE
+          await cardsApi.moveCard(card.id, 'done');
+          onCardMove(card.id, 'done');
+          await updateStatus('completed', 'done');
           break;
         }
 
@@ -284,21 +261,10 @@ export function useWorkflowAutomation({
             break;
           }
 
-          // Tentar fazer merge antes de mover para done
-          const mergeResult2 = await handleCompletedReview(card.id);
-
-          if (mergeResult2.success || !card.branchName) {
-            // Merge bem-sucedido ou card nao tem branch
-            await cardsApi.moveCard(card.id, 'done');
-            onCardMove(card.id, 'done');
-            await updateStatus('completed', 'done');
-          } else if (mergeResult2.status === 'resolving') {
-            // IA esta resolvendo conflitos - manter em review
-            await updateStatus('reviewing', 'review');
-          } else {
-            // Merge falhou
-            await updateStatus('error', 'review', mergeResult2.error || 'Merge failed');
-          }
+          // Após review bem-sucedido, ir direto para DONE
+          await cardsApi.moveCard(card.id, 'done');
+          onCardMove(card.id, 'done');
+          await updateStatus('completed', 'done');
           break;
         }
 
@@ -316,40 +282,18 @@ export function useWorkflowAutomation({
             break;
           }
 
-          // Tentar fazer merge antes de mover para done
-          const mergeResult3 = await handleCompletedReview(card.id);
-
-          if (mergeResult3.success || !card.branchName) {
-            // Merge bem-sucedido ou card nao tem branch
-            await cardsApi.moveCard(card.id, 'done');
-            onCardMove(card.id, 'done');
-            await updateStatus('completed', 'done');
-          } else if (mergeResult3.status === 'resolving') {
-            // IA esta resolvendo conflitos - manter em review
-            await updateStatus('reviewing', 'review');
-          } else {
-            // Merge falhou
-            await updateStatus('error', 'review', mergeResult3.error || 'Merge failed');
-          }
+          // Após review bem-sucedido, ir direto para DONE
+          await cardsApi.moveCard(card.id, 'done');
+          onCardMove(card.id, 'done');
+          await updateStatus('completed', 'done');
           break;
         }
 
         case 'reviewing': {
-          // Review completed → tentar fazer merge antes de mover para done
-          const mergeResult4 = await handleCompletedReview(card.id);
-
-          if (mergeResult4.success || !card.branchName) {
-            // Merge bem-sucedido ou card nao tem branch
-            await cardsApi.moveCard(card.id, 'done');
-            onCardMove(card.id, 'done');
-            await updateStatus('completed', 'done');
-          } else if (mergeResult4.status === 'resolving') {
-            // IA esta resolvendo conflitos - manter em review
-            await updateStatus('reviewing', 'review');
-          } else {
-            // Merge falhou
-            await updateStatus('error', 'review', mergeResult4.error || 'Merge failed');
-          }
+          // Review completed → ir direto para DONE
+          await cardsApi.moveCard(card.id, 'done');
+          onCardMove(card.id, 'done');
+          await updateStatus('completed', 'done');
           break;
         }
       }
@@ -456,52 +400,9 @@ export function useWorkflowAutomation({
     });
   }, [initialStatuses, cards, executions, registerCompletionCallback, continueWorkflowFromStage]);
 
-  /**
-   * Tenta fazer merge quando card completa REVIEW.
-   * Card permanece em REVIEW com sub-estado de merge.
-   */
-  const handleCompletedReview = useCallback(async (cardId: string): Promise<{
-    success: boolean;
-    status?: string;
-    hasConflicts?: boolean;
-    error?: string;
-  }> => {
-    try {
-      // Iniciar merge
-      const response = await fetch(`${API_ENDPOINTS.cards}/${cardId}/merge`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { success: false, error: data.detail || 'Merge failed' };
-      }
-
-      if (data.status === 'resolving') {
-        // IA esta resolvendo conflitos
-        return { success: false, status: 'resolving', hasConflicts: true };
-      }
-
-      if (data.status === 'merged') {
-        return { success: true, status: 'merged' };
-      }
-
-      return { success: false, error: data.error || 'Unknown merge error' };
-
-    } catch (error) {
-      console.error('Failed to merge card:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    }
-  }, []);
-
   return {
     runWorkflow,
     getWorkflowStatus,
     clearWorkflowStatus,
-    handleCompletedReview,
   };
 }

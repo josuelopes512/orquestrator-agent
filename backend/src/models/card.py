@@ -56,11 +56,6 @@ class Card(Base):
         String(500),
         nullable=True
     )
-    merge_status: Mapped[str] = mapped_column(
-        String(20),
-        default="none",
-        nullable=False
-    )  # none, merging, resolving, merged, failed
 
     # Relacionamento com execuções
     executions = relationship("Execution", back_populates="card", cascade="all, delete-orphan")
