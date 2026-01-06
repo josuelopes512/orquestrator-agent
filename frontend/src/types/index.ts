@@ -1,8 +1,23 @@
 export type ColumnId = 'backlog' | 'plan' | 'implement' | 'test' | 'review' | 'done' | 'archived' | 'cancelado';
-export type ModelType = 'opus-4.5' | 'sonnet-4.5' | 'haiku-4.5';
+export type ModelType =
+  | 'opus-4.5' | 'sonnet-4.5' | 'haiku-4.5'  // Claude models
+  | 'gemini-3-pro' | 'gemini-3-flash';  // Gemini models
 
 // Status de merge - IA resolve conflitos automaticamente
 export type MergeStatus = 'none' | 'merging' | 'resolving' | 'merged' | 'failed';
+
+// Provider info para UI
+export type ModelProvider = 'anthropic' | 'google';
+
+export interface ModelInfo {
+  value: ModelType;
+  label: string;
+  provider: ModelProvider;
+  tagline: string;
+  performance: string;
+  icon: string;
+  accent: string;
+}
 
 export interface CardImage {
   id: string;
@@ -39,7 +54,6 @@ export interface Card {
   // Campos para worktree isolation
   branchName?: string;
   worktreePath?: string;
-  mergeStatus: MergeStatus;
 }
 
 export interface Column {
@@ -167,5 +181,4 @@ export interface ActiveBranch {
   cardId: string;
   cardTitle: string;
   cardColumn: string;
-  mergeStatus: MergeStatus;
 }

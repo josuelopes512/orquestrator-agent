@@ -22,49 +22,95 @@ class ClaudeAgentChat:
         # No need for API key - Agent SDK uses Claude Code authentication
         pass
 
-    async def stream_response(
+    async def _stream_response_gemini(
         self,
         messages: list[dict],
-        model: str = "claude-3.5-sonnet",
+        model: str,
         system_prompt: str | None = None
     ) -> AsyncGenerator[str, None]:
         """
-        Stream a response from Claude Agent SDK using the /question command.
+        Stream a response from Gemini using the GeminiAgent.
 
         Args:
-            messages: List of conversation messages in format [{"role": "user/assistant", "content": "..."}]
-            model: AI model to use (e.g., "claude-3-sonnet", "claude-3-opus", "gpt-4-turbo")
-            system_prompt: Optional system prompt (not used with /question, but kept for compatibility)
+            messages: List of conversation messages
+            model: Gemini model to use (e.g., "gemini-3-pro", "gemini-3-flash")
+            system_prompt: Optional system prompt
 
         Yields:
             str: Chunks of the response text as they arrive
         """
+        print(f"[ClaudeAgentChat] _stream_response_gemini called with model: {model}")
+        print(f"[ClaudeAgentChat] Number of messages: {len(messages)}")
+
         try:
-            # Get the last user message (the current question)
-            user_message = None
-            for msg in reversed(messages):
-                if msg["role"] == "user":
-                    user_message = msg["content"]
-                    break
+            from .gemini_agent import GeminiAgent
 
-            if not user_message:
-                raise ValueError("No user message found in conversation")
+            # Get current working directory from active project
+            from .database import async_session_maker
+            from .models.project import ActiveProject
+            from sqlalchemy import select
 
-            # Build context from previous messages (optional, for multi-turn conversations)
-            context = ""
-            if len(messages) > 1:
-                context = "\n\nPrevious conversation:\n"
-                for msg in messages[:-1]:  # All messages except the last one
-                    role = "User" if msg["role"] == "user" else "Assistant"
-                    context += f"{role}: {msg['content']}\n"
+            cwd = Path.cwd()
+            print(f"[ClaudeAgentChat] Initial cwd: {cwd}")
 
-            # Execute /question command with the user's question
-            prompt = f"/question {user_message}"
+            async with async_session_maker() as session:
+                result = await session.execute(
+                    select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
+                )
+                active_project = result.scalar_one_or_none()
+                if active_project:
+                    cwd = Path(active_project.path)
+                    print(f"[ClaudeAgentChat] Using project cwd: {cwd}")
 
-            # Add context if available
-            if context:
-                prompt += context
+            # Initialize Gemini agent
+            print(f"[ClaudeAgentChat] Initializing GeminiAgent with model: {model}")
+            gemini = GeminiAgent(model=model)
 
+            # Stream response
+            print(f"[ClaudeAgentChat] Starting stream...")
+            chunk_count = 0
+            async for chunk in gemini.chat_completion(messages, system_prompt, cwd):
+                chunk_count += 1
+                print(f"[ClaudeAgentChat] Yielding chunk {chunk_count}: {chunk[:50]}...")
+                yield chunk
+
+            print(f"[ClaudeAgentChat] Stream completed. Total chunks: {chunk_count}")
+
+        except Exception as e:
+            error_msg = f"Error in Gemini Agent: {str(e)}"
+            print(f"[ClaudeAgentChat] {error_msg}")
+            import traceback
+            traceback.print_exc()
+            raise RuntimeError(error_msg)
+
+    async def stream_response(
+        self,
+        messages: list[dict],
+        model: str = "sonnet-4.5",
+        system_prompt: str | None = None
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream response from Claude or Gemini using Agent SDK directly
+        without predefined commands like /question
+
+        Args:
+            messages: List of conversation messages in format [{"role": "user/assistant", "content": "..."}]
+            model: AI model to use (e.g., "opus-4.5", "sonnet-4.5", "haiku-4.5", "gemini-3-pro", "gemini-3-flash")
+            system_prompt: Optional system prompt to set context
+
+        Yields:
+            str: Chunks of the response text as they arrive
+        """
+        print(f"[ClaudeAgentChat] stream_response called with model: {model}")
+
+        # Check if it's a Gemini model
+        if model.startswith("gemini"):
+            print(f"[ClaudeAgentChat] Detected Gemini model, routing to _stream_response_gemini")
+            async for chunk in self._stream_response_gemini(messages, model, system_prompt):
+                yield chunk
+            return
+
+        try:
             # Get current working directory from active project in database
             from .database import async_session_maker
             from .models.project import ActiveProject
@@ -79,37 +125,68 @@ class ClaudeAgentChat:
                 if active_project:
                     cwd = Path(active_project.path)
 
-            # Map model IDs to agent SDK model names
+            # Map model names to valid Anthropic API model names
             model_mapping = {
-                "claude-3.5-opus": "opus",
-                "claude-3.5-sonnet": "sonnet",
-                "claude-3.5-haiku": "haiku",
-                # Keep compatibility with old model names
-                "claude-3-sonnet": "sonnet",
-                "claude-3-opus": "opus",
+                # Claude 4.5 models (using aliases that auto-update to latest snapshot)
+                "opus-4.5": "claude-opus-4-5",
+                "sonnet-4.5": "claude-sonnet-4-5",
+                "haiku-4.5": "claude-haiku-4-5",
+                # Claude 3.5 models (for backward compatibility)
+                "claude-3.5-opus": "claude-3-5-opus-20240229",
+                "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
+                "claude-3.5-haiku": "claude-3-5-haiku-20241022",
+                # Claude 3 models
+                "claude-3-sonnet": "claude-3-sonnet-20240229",
+                "claude-3-opus": "claude-3-opus-20240229",
             }
-            agent_model = model_mapping.get(model, "sonnet")
+            agent_model = model_mapping.get(model, "claude-sonnet-4-5")
 
-            # Configure agent options for chat
+            # Build conversation context
+            # Instead of using /question command, send direct prompt with full context
+            full_prompt = ""
+
+            # Add system prompt if provided
+            if system_prompt:
+                full_prompt = f"{system_prompt}\n\n"
+
+            # Add conversation history
+            if len(messages) > 1:
+                full_prompt += "Previous conversation:\n"
+                for msg in messages[:-1]:
+                    role = "User" if msg["role"] == "user" else "Assistant"
+                    full_prompt += f"{role}: {msg['content']}\n"
+                full_prompt += "\n"
+
+            # Add current user message
+            user_message = messages[-1]["content"]
+            full_prompt += f"User: {user_message}\n\nAssistant:"
+
+            # Configure Claude Agent SDK Options - same as /plan but with appropriate tools
             options = ClaudeAgentOptions(
-                cwd=cwd,
-                setting_sources=["user", "project"],  # Load commands from .claude/commands/
-                allowed_tools=["Read", "Bash", "Glob", "Grep", "Skill"],
-                permission_mode="bypassPermissions",  # Auto-approve read operations
-                model=agent_model,  # Use selected model
+                cwd=cwd,  # Use project root
+                setting_sources=["user", "project"],
+                allowed_tools=[
+                    "Read",      # Read files
+                    "Bash",      # Execute commands
+                    "Glob",      # Search files
+                    "Grep",      # Search content
+                    "WebSearch", # Web search capability
+                    "WebFetch",  # Fetch web content
+                    "Task",      # Launch agents for complex tasks
+                    "Skill",     # Use skills
+                ],
+                permission_mode="bypassPermissions",  # Auto-approve for chat
+                model=agent_model,
             )
 
-            # Stream response from Claude Agent SDK
-            async for message in query(prompt=prompt, options=options):
+            # Execute query directly without command prefix
+            async for message in query(prompt=full_prompt, options=options):
                 if isinstance(message, AssistantMessage):
-                    # Handle assistant messages with content blocks
                     for block in message.content:
                         if isinstance(block, TextBlock):
-                            # Yield text chunks
+                            # Stream text content
                             yield block.text
-
                 elif isinstance(message, ResultMessage):
-                    # Final result message
                     if hasattr(message, "result") and message.result:
                         yield message.result
 
@@ -121,7 +198,7 @@ class ClaudeAgentChat:
     async def get_single_response(
         self,
         messages: list[dict],
-        model: str = "claude-3.5-sonnet",
+        model: str = "sonnet-4.5",
         system_prompt: str | None = None
     ) -> str:
         """

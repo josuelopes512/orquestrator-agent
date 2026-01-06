@@ -8,9 +8,9 @@ import styles from './ModelSelector.module.css';
  */
 export const AVAILABLE_MODELS: AIModel[] = [
   {
-    id: 'claude-3-5-opus',
-    name: 'Claude 3.5 Opus',
-    displayName: 'Opus',
+    id: 'opus-4.5',
+    name: 'Opus 4.5',
+    displayName: 'Opus 4.5',
     provider: 'anthropic',
     maxTokens: 200000,
     description: 'Most powerful model for complex reasoning and advanced tasks',
@@ -20,9 +20,9 @@ export const AVAILABLE_MODELS: AIModel[] = [
     badge: 'Most Capable'
   },
   {
-    id: 'claude-3-5-sonnet',
-    name: 'Claude 3.5 Sonnet',
-    displayName: 'Sonnet',
+    id: 'sonnet-4.5',
+    name: 'Sonnet 4.5',
+    displayName: 'Sonnet 4.5',
     provider: 'anthropic',
     maxTokens: 200000,
     description: 'Balanced performance and speed for most tasks',
@@ -32,9 +32,9 @@ export const AVAILABLE_MODELS: AIModel[] = [
     badge: 'Best Value'
   },
   {
-    id: 'claude-3-5-haiku',
-    name: 'Claude 3.5 Haiku',
-    displayName: 'Haiku',
+    id: 'haiku-4.5',
+    name: 'Haiku 4.5',
+    displayName: 'Haiku 4.5',
     provider: 'anthropic',
     maxTokens: 200000,
     description: 'Fast responses for simple tasks and quick interactions',
@@ -75,6 +75,30 @@ export const AVAILABLE_MODELS: AIModel[] = [
     icon: '🤖',
     accent: 'openai',
     badge: 'OpenAI'
+  },
+  // Modelos Gemini
+  {
+    id: 'gemini-3-pro',
+    name: 'Gemini 3 Pro',
+    displayName: 'Gemini Pro',
+    provider: 'google',
+    maxTokens: 1000000,
+    description: 'Google\'s most capable multimodal model with long context',
+    performance: 'powerful',
+    icon: '🌟',
+    accent: 'google',
+    badge: 'Long Context'
+  },
+  {
+    id: 'gemini-3-flash',
+    name: 'Gemini 3 Flash',
+    displayName: 'Gemini Flash',
+    provider: 'google',
+    maxTokens: 1000000,
+    description: 'Fast and efficient model for quick tasks',
+    performance: 'fastest',
+    icon: '⚡',
+    accent: 'google'
   }
 ];
 
