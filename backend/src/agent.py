@@ -208,12 +208,10 @@ async def execute_plan_gemini(
 
     gemini = GeminiAgent(model=model)
 
-    # Prepara prompt
-    prompt = f"Create a detailed implementation plan for:\n\nTitle: {title}\nDescription: {description}"
+    # Formato correto para o comando /plan
+    prompt = f"/plan {title}: {description}"
     if images:
-        prompt += "\n\nAttached images:\n"
-        for img in images:
-            prompt += f"- {img.get('filename', 'image')}: {img.get('path', '')}\n"
+        prompt += "\n\n[Imagens anexadas ao card estão disponíveis para análise]"
 
     # Usar repository se disponível
     repo = None
@@ -229,12 +227,12 @@ async def execute_plan_gemini(
         await repo.add_log(
             execution_id=execution_db.id,
             log_type="info",
-            content=f"Starting plan execution with Gemini for: {title}"
+            content=f"Iniciando execução do plano com Gemini para: {title}"
         )
         await repo.add_log(
             execution_id=execution_db.id,
             log_type="info",
-            content=f"Working directory: {cwd}"
+            content=f"Diretório de trabalho: {cwd}"
         )
 
     # Initialize execution record (memória)
@@ -247,8 +245,8 @@ async def execute_plan_gemini(
     )
     executions[card_id] = record
 
-    add_log(record, LogType.INFO, f"Starting plan execution with Gemini for: {title}")
-    add_log(record, LogType.INFO, f"Working directory: {cwd}")
+    add_log(record, LogType.INFO, f"Iniciando execução do plano com Gemini para: {title}")
+    add_log(record, LogType.INFO, f"Diretório de trabalho: {cwd}")
 
     # Executa comando via Gemini CLI
     full_response = ""
@@ -273,9 +271,9 @@ async def execute_plan_gemini(
         record.completed_at = datetime.now().isoformat()
         record.status = ExecutionStatus.SUCCESS
         record.result = full_response
-        add_log(record, LogType.INFO, "Plan execution completed successfully")
+        add_log(record, LogType.INFO, "Execução do plano concluída com sucesso")
         if spec_path:
-            add_log(record, LogType.INFO, f"Spec path: {spec_path}")
+            add_log(record, LogType.INFO, f"Caminho da spec: {spec_path}")
 
         if repo and execution_db:
             await repo.update_execution_status(
@@ -304,7 +302,497 @@ async def execute_plan_gemini(
         record.completed_at = datetime.now().isoformat()
         record.status = ExecutionStatus.ERROR
         record.result = error_message
-        add_log(record, LogType.ERROR, f"Execution error: {error_message}")
+        add_log(record, LogType.ERROR, f"Erro de execução: {error_message}")
+
+        if repo and execution_db:
+            await repo.add_log(
+                execution_id=execution_db.id,
+                log_type="error",
+                content=error_message
+            )
+            await repo.update_execution_status(
+                execution_id=execution_db.id,
+                status=DBExecutionStatus.ERROR,
+                result=error_message
+            )
+            execution_data = await repo.get_execution_with_logs(card_id)
+            if execution_data:
+                return PlanResult(
+                    success=False,
+                    error=error_message,
+                    logs=execution_data["logs"],
+                )
+
+        return PlanResult(
+            success=False,
+            error=error_message,
+            logs=record.logs,
+        )
+
+
+async def execute_implement_gemini(
+    card_id: str,
+    spec_path: str,
+    cwd: str,
+    model: str,
+    images: Optional[list] = None,
+    db_session: Optional[AsyncSession] = None,
+) -> PlanResult:
+    """Execute /implement usando Gemini CLI."""
+    from .gemini_agent import GeminiAgent
+    from .database import async_session_maker
+    from .models.project import ActiveProject
+    from sqlalchemy import select
+
+    print(f"[Agent] Initial cwd parameter: {cwd}")
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
+        )
+        active_project = result.scalar_one_or_none()
+        if active_project:
+            project_path = active_project.path
+            print(f"[Agent] Found active project: {project_path}")
+        else:
+            project_path = str(Path(__file__).parent.parent.parent)
+            print(f"[Agent] No active project, using root project: {project_path}")
+
+        # Obter worktree para isolamento
+        cwd, branch_name, worktree_path = await get_worktree_cwd(
+            card_id, project_path, session
+        )
+        if worktree_path:
+            print(f"[Agent] Using worktree isolation: {cwd}")
+        else:
+            print(f"[Agent] Using project directory (no worktree): {cwd}")
+
+    gemini = GeminiAgent(model=model)
+
+    # Primeiro, ler o conteúdo do arquivo de spec
+    spec_file = Path(cwd) / spec_path
+    if spec_file.exists():
+        spec_content = spec_file.read_text()
+        # Formato correto: /implement seguido do conteúdo do plano
+        prompt = f"/implement\n\n{spec_content}"
+    else:
+        prompt = f"/implement {spec_path}"
+
+    if images:
+        prompt += "\n\n[Imagens anexadas ao card estão disponíveis para análise]"
+
+    # Usar spec_path como "título" para contexto visual
+    spec_name = Path(spec_path).stem
+
+    # Usar repository se disponível
+    repo = None
+    execution_db = None
+
+    if db_session:
+        repo = ExecutionRepository(db_session)
+        execution_db = await repo.create_execution(
+            card_id=card_id,
+            command="/implement",
+            title=f"impl:{spec_name}"
+        )
+        await repo.add_log(
+            execution_id=execution_db.id,
+            log_type="info",
+            content=f"Iniciando implementação com Gemini para: {spec_path}"
+        )
+        await repo.add_log(
+            execution_id=execution_db.id,
+            log_type="info",
+            content=f"Diretório de trabalho: {cwd}"
+        )
+
+    # Initialize execution record (memória)
+    record = ExecutionRecord(
+        cardId=card_id,
+        title=f"impl:{spec_name}",
+        startedAt=datetime.now().isoformat(),
+        status=ExecutionStatus.RUNNING,
+        logs=[],
+    )
+    executions[card_id] = record
+
+    add_log(record, LogType.INFO, f"Iniciando implementação com Gemini para: {spec_path}")
+    add_log(record, LogType.INFO, f"Diretório de trabalho: {cwd}")
+
+    # Executa comando via Gemini CLI
+    full_response = ""
+    try:
+        async for chunk in gemini.execute_command(
+            prompt=prompt,
+            cwd=Path(cwd),
+            stream=True
+        ):
+            full_response += chunk
+            add_log(record, LogType.TEXT, chunk)
+            if repo and execution_db:
+                await repo.add_log(
+                    execution_id=execution_db.id,
+                    log_type="text",
+                    content=chunk
+                )
+
+        record.completed_at = datetime.now().isoformat()
+        record.status = ExecutionStatus.SUCCESS
+        record.result = full_response
+        add_log(record, LogType.INFO, "Implementação concluída com sucesso")
+
+        if repo and execution_db:
+            await repo.update_execution_status(
+                execution_id=execution_db.id,
+                status=DBExecutionStatus.SUCCESS,
+                result=full_response
+            )
+            execution_data = await repo.get_execution_with_logs(card_id)
+            if execution_data:
+                return PlanResult(
+                    success=True,
+                    result=full_response,
+                    logs=execution_data["logs"],
+                )
+
+        return PlanResult(
+            success=True,
+            result=full_response,
+            logs=record.logs,
+        )
+
+    except Exception as e:
+        error_message = str(e)
+        record.completed_at = datetime.now().isoformat()
+        record.status = ExecutionStatus.ERROR
+        record.result = error_message
+        add_log(record, LogType.ERROR, f"Erro de execução: {error_message}")
+
+        if repo and execution_db:
+            await repo.add_log(
+                execution_id=execution_db.id,
+                log_type="error",
+                content=error_message
+            )
+            await repo.update_execution_status(
+                execution_id=execution_db.id,
+                status=DBExecutionStatus.ERROR,
+                result=error_message
+            )
+            execution_data = await repo.get_execution_with_logs(card_id)
+            if execution_data:
+                return PlanResult(
+                    success=False,
+                    error=error_message,
+                    logs=execution_data["logs"],
+                )
+
+        return PlanResult(
+            success=False,
+            error=error_message,
+            logs=record.logs,
+        )
+
+
+async def execute_test_implementation_gemini(
+    card_id: str,
+    spec_path: str,
+    cwd: str,
+    model: str,
+    images: Optional[list] = None,
+    db_session: Optional[AsyncSession] = None,
+) -> PlanResult:
+    """Execute /test-implementation usando Gemini CLI."""
+    from .gemini_agent import GeminiAgent
+    from .database import async_session_maker
+    from .models.project import ActiveProject
+    from sqlalchemy import select
+
+    print(f"[Agent] Initial cwd parameter: {cwd}")
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
+        )
+        active_project = result.scalar_one_or_none()
+        if active_project:
+            project_path = active_project.path
+            print(f"[Agent] Found active project: {project_path}")
+        else:
+            project_path = str(Path(__file__).parent.parent.parent)
+            print(f"[Agent] No active project, using root project: {project_path}")
+
+        # Obter worktree para isolamento
+        cwd, branch_name, worktree_path = await get_worktree_cwd(
+            card_id, project_path, session
+        )
+        if worktree_path:
+            print(f"[Agent] Using worktree isolation: {cwd}")
+        else:
+            print(f"[Agent] Using project directory (no worktree): {cwd}")
+
+    gemini = GeminiAgent(model=model)
+
+    # Ler o conteúdo do arquivo de spec
+    spec_file = Path(cwd) / spec_path
+    if spec_file.exists():
+        spec_content = spec_file.read_text()
+        prompt = f"/test-implementation\n\n{spec_content}"
+    else:
+        prompt = f"/test-implementation {spec_path}"
+
+    if images:
+        prompt += "\n\n[Imagens anexadas ao card estão disponíveis para análise]"
+
+    # Usar spec_path como "título" para contexto visual
+    spec_name = Path(spec_path).stem
+
+    # Usar repository se disponível
+    repo = None
+    execution_db = None
+
+    if db_session:
+        repo = ExecutionRepository(db_session)
+        execution_db = await repo.create_execution(
+            card_id=card_id,
+            command="/test-implementation",
+            title=f"test:{spec_name}"
+        )
+        await repo.add_log(
+            execution_id=execution_db.id,
+            log_type="info",
+            content=f"Iniciando teste da implementação com Gemini para: {spec_path}"
+        )
+        await repo.add_log(
+            execution_id=execution_db.id,
+            log_type="info",
+            content=f"Diretório de trabalho: {cwd}"
+        )
+
+    # Initialize execution record (memória)
+    record = ExecutionRecord(
+        cardId=card_id,
+        title=f"test:{spec_name}",
+        startedAt=datetime.now().isoformat(),
+        status=ExecutionStatus.RUNNING,
+        logs=[],
+    )
+    executions[card_id] = record
+
+    add_log(record, LogType.INFO, f"Iniciando teste da implementação com Gemini para: {spec_path}")
+    add_log(record, LogType.INFO, f"Diretório de trabalho: {cwd}")
+
+    # Executa comando via Gemini CLI
+    full_response = ""
+    try:
+        async for chunk in gemini.execute_command(
+            prompt=prompt,
+            cwd=Path(cwd),
+            stream=True
+        ):
+            full_response += chunk
+            add_log(record, LogType.TEXT, chunk)
+            if repo and execution_db:
+                await repo.add_log(
+                    execution_id=execution_db.id,
+                    log_type="text",
+                    content=chunk
+                )
+
+        record.completed_at = datetime.now().isoformat()
+        record.status = ExecutionStatus.SUCCESS
+        record.result = full_response
+        add_log(record, LogType.INFO, "Teste da implementação concluído com sucesso")
+
+        if repo and execution_db:
+            await repo.update_execution_status(
+                execution_id=execution_db.id,
+                status=DBExecutionStatus.SUCCESS,
+                result=full_response
+            )
+            execution_data = await repo.get_execution_with_logs(card_id)
+            if execution_data:
+                return PlanResult(
+                    success=True,
+                    result=full_response,
+                    logs=execution_data["logs"],
+                )
+
+        return PlanResult(
+            success=True,
+            result=full_response,
+            logs=record.logs,
+        )
+
+    except Exception as e:
+        error_message = str(e)
+        record.completed_at = datetime.now().isoformat()
+        record.status = ExecutionStatus.ERROR
+        record.result = error_message
+        add_log(record, LogType.ERROR, f"Erro de execução: {error_message}")
+
+        if repo and execution_db:
+            await repo.add_log(
+                execution_id=execution_db.id,
+                log_type="error",
+                content=error_message
+            )
+            await repo.update_execution_status(
+                execution_id=execution_db.id,
+                status=DBExecutionStatus.ERROR,
+                result=error_message
+            )
+            execution_data = await repo.get_execution_with_logs(card_id)
+            if execution_data:
+                return PlanResult(
+                    success=False,
+                    error=error_message,
+                    logs=execution_data["logs"],
+                )
+
+        return PlanResult(
+            success=False,
+            error=error_message,
+            logs=record.logs,
+        )
+
+
+async def execute_review_gemini(
+    card_id: str,
+    spec_path: str,
+    cwd: str,
+    model: str,
+    images: Optional[list] = None,
+    db_session: Optional[AsyncSession] = None,
+) -> PlanResult:
+    """Execute /review usando Gemini CLI."""
+    from .gemini_agent import GeminiAgent
+    from .database import async_session_maker
+    from .models.project import ActiveProject
+    from sqlalchemy import select
+
+    print(f"[Agent] Initial cwd parameter: {cwd}")
+
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
+        )
+        active_project = result.scalar_one_or_none()
+        if active_project:
+            project_path = active_project.path
+            print(f"[Agent] Found active project: {project_path}")
+        else:
+            project_path = str(Path(__file__).parent.parent.parent)
+            print(f"[Agent] No active project, using root project: {project_path}")
+
+        # Obter worktree para isolamento
+        cwd, branch_name, worktree_path = await get_worktree_cwd(
+            card_id, project_path, session
+        )
+        if worktree_path:
+            print(f"[Agent] Using worktree isolation: {cwd}")
+        else:
+            print(f"[Agent] Using project directory (no worktree): {cwd}")
+
+    gemini = GeminiAgent(model=model)
+
+    # Ler o conteúdo do arquivo de spec
+    spec_file = Path(cwd) / spec_path
+    if spec_file.exists():
+        spec_content = spec_file.read_text()
+        prompt = f"/review\n\n{spec_content}"
+    else:
+        prompt = f"/review {spec_path}"
+
+    if images:
+        prompt += "\n\n[Imagens anexadas ao card estão disponíveis para análise]"
+
+    # Usar spec_path como "título" para contexto visual
+    spec_name = Path(spec_path).stem
+
+    # Usar repository se disponível
+    repo = None
+    execution_db = None
+
+    if db_session:
+        repo = ExecutionRepository(db_session)
+        execution_db = await repo.create_execution(
+            card_id=card_id,
+            command="/review",
+            title=f"review:{spec_name}"
+        )
+        await repo.add_log(
+            execution_id=execution_db.id,
+            log_type="info",
+            content=f"Iniciando revisão com Gemini para: {spec_path}"
+        )
+        await repo.add_log(
+            execution_id=execution_db.id,
+            log_type="info",
+            content=f"Diretório de trabalho: {cwd}"
+        )
+
+    # Initialize execution record (memória)
+    record = ExecutionRecord(
+        cardId=card_id,
+        title=f"review:{spec_name}",
+        startedAt=datetime.now().isoformat(),
+        status=ExecutionStatus.RUNNING,
+        logs=[],
+    )
+    executions[card_id] = record
+
+    add_log(record, LogType.INFO, f"Iniciando revisão com Gemini para: {spec_path}")
+    add_log(record, LogType.INFO, f"Diretório de trabalho: {cwd}")
+
+    # Executa comando via Gemini CLI
+    full_response = ""
+    try:
+        async for chunk in gemini.execute_command(
+            prompt=prompt,
+            cwd=Path(cwd),
+            stream=True
+        ):
+            full_response += chunk
+            add_log(record, LogType.TEXT, chunk)
+            if repo and execution_db:
+                await repo.add_log(
+                    execution_id=execution_db.id,
+                    log_type="text",
+                    content=chunk
+                )
+
+        record.completed_at = datetime.now().isoformat()
+        record.status = ExecutionStatus.SUCCESS
+        record.result = full_response
+        add_log(record, LogType.INFO, "Revisão concluída com sucesso")
+
+        if repo and execution_db:
+            await repo.update_execution_status(
+                execution_id=execution_db.id,
+                status=DBExecutionStatus.SUCCESS,
+                result=full_response
+            )
+            execution_data = await repo.get_execution_with_logs(card_id)
+            if execution_data:
+                return PlanResult(
+                    success=True,
+                    result=full_response,
+                    logs=execution_data["logs"],
+                )
+
+        return PlanResult(
+            success=True,
+            result=full_response,
+            logs=record.logs,
+        )
+
+    except Exception as e:
+        error_message = str(e)
+        record.completed_at = datetime.now().isoformat()
+        record.status = ExecutionStatus.ERROR
+        record.result = error_message
+        add_log(record, LogType.ERROR, f"Erro de execução: {error_message}")
 
         if repo and execution_db:
             await repo.add_log(
@@ -617,6 +1105,12 @@ async def execute_implement(
     db_session: Optional[AsyncSession] = None,
 ) -> PlanResult:
     """Execute /implement command with the spec file path."""
+    # Detecta se é modelo Gemini
+    if model.startswith("gemini"):
+        return await execute_implement_gemini(
+            card_id, spec_path, cwd, model, images, db_session
+        )
+
     # Obter diretório do projeto atual do banco de dados
     from .database import async_session_maker
     from .models.project import ActiveProject
@@ -880,6 +1374,12 @@ async def execute_test_implementation(
     db_session: Optional[AsyncSession] = None,
 ) -> PlanResult:
     """Execute /test-implementation command with the spec file path."""
+    # Detecta se é modelo Gemini
+    if model.startswith("gemini"):
+        return await execute_test_implementation_gemini(
+            card_id, spec_path, cwd, model, images, db_session
+        )
+
     # Obter diretório do projeto atual do banco de dados
     from .database import async_session_maker
     from .models.project import ActiveProject
@@ -1152,6 +1652,12 @@ async def execute_review(
     db_session: Optional[AsyncSession] = None,
 ) -> PlanResult:
     """Execute /review command with the spec file path."""
+    # Detecta se é modelo Gemini
+    if model.startswith("gemini"):
+        return await execute_review_gemini(
+            card_id, spec_path, cwd, model, images, db_session
+        )
+
     # Obter diretório do projeto atual do banco de dados
     from .database import async_session_maker
     from .models.project import ActiveProject
