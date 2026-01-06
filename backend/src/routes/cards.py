@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..repositories.card_repository import CardRepository
+from ..repositories.execution_repository import ExecutionRepository
 from ..schemas.card import (
     CardCreate,
     CardUpdate,
@@ -16,6 +17,7 @@ from ..schemas.card import (
     CardDeleteResponse,
     ActiveExecution,
     DiffStats,
+    TokenStats,
 )
 from ..services.diff_analyzer import DiffAnalyzer
 
@@ -24,8 +26,9 @@ router = APIRouter(prefix="/api/cards", tags=["cards"])
 
 @router.get("", response_model=CardsListResponse)
 async def get_all_cards(db: AsyncSession = Depends(get_db)):
-    """Get all cards with active executions."""
+    """Get all cards with active executions and token statistics."""
     repo = CardRepository(db)
+    execution_repo = ExecutionRepository(db)
     cards = await repo.get_all()
 
     # Para cada card, buscar execução ativa se houver
@@ -68,6 +71,11 @@ async def get_all_cards(db: AsyncSession = Depends(get_db)):
                     workflowStage=workflow_stage,
                     workflowError=workflow_error
                 )
+
+        # Buscar estatísticas de tokens para o card
+        token_stats = await execution_repo.get_token_stats_for_card(card.id)
+        if token_stats and token_stats["totalTokens"] > 0:
+            card_dict["token_stats"] = TokenStats(**token_stats)
 
         cards_with_execution.append(CardResponse.model_validate(card_dict))
 
