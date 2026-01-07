@@ -53,7 +53,7 @@ class GeminiAgent:
             "gemini-3-flash": "gemini-3-flash-preview"
         }
         cli_model = model_mapping.get(self.model, self.model)
-
+        
         # Monta o comando completo
         cmd_parts = [
             self.gemini_cli_path,
