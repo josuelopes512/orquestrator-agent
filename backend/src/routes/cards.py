@@ -18,6 +18,7 @@ from ..schemas.card import (
     ActiveExecution,
     DiffStats,
     TokenStats,
+    CostStats,
 )
 from ..services.diff_analyzer import DiffAnalyzer
 
@@ -76,6 +77,11 @@ async def get_all_cards(db: AsyncSession = Depends(get_db)):
         token_stats = await exec_repo.get_token_stats_for_card(card.id)
         if token_stats.get("totalTokens", 0) > 0:
             card_dict["tokenStats"] = TokenStats(**token_stats)
+
+        # Buscar cost stats para o card
+        cost_stats = await exec_repo.get_cost_stats_for_card(card.id)
+        if cost_stats.get("totalCost", 0.0) > 0:
+            card_dict["costStats"] = CostStats(**cost_stats)
 
         cards_with_execution.append(CardResponse.model_validate(card_dict))
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ExecutionLog, ExecutionHistory } from '../../types';
+import { ExecutionLog, ExecutionHistory, CostStats } from '../../types';
+import { formatCost } from '../../utils/costCalculator';
 import styles from './LogsModal.module.css';
 
 interface LogsModalProps {
@@ -12,6 +13,7 @@ interface LogsModalProps {
   startedAt?: string;
   completedAt?: string;
   history?: ExecutionHistory[]; // Histórico completo de execuções
+  costStats?: CostStats; // Estatísticas de custo
 }
 
 export function LogsModal({
@@ -22,7 +24,8 @@ export function LogsModal({
   logs,
   startedAt,
   completedAt,
-  history
+  history,
+  costStats
 }: LogsModalProps) {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const scrollPositionRef = useRef(0);
@@ -258,6 +261,50 @@ export function LogsModal({
                 </div>
               </div>
             </div>
+
+            {/* Cost Breakdown */}
+            {costStats && costStats.totalCost > 0 && (
+              <div className={`${styles.metadataItem} ${styles.costBreakdown}`}>
+                <div className={styles.metadataIcon}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23"/>
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  </svg>
+                </div>
+                <div className={styles.metadataContent}>
+                  <div className={styles.metadataLabel}>Custo Total</div>
+                  <div className={styles.metadataValue}>
+                    {formatCost(costStats.totalCost)}
+                  </div>
+                  <div className={styles.costDetails}>
+                    {costStats.planCost > 0 && (
+                      <div className={styles.costItem}>
+                        <span>Plan:</span>
+                        <span>{formatCost(costStats.planCost)}</span>
+                      </div>
+                    )}
+                    {costStats.implementCost > 0 && (
+                      <div className={styles.costItem}>
+                        <span>Implement:</span>
+                        <span>{formatCost(costStats.implementCost)}</span>
+                      </div>
+                    )}
+                    {costStats.testCost > 0 && (
+                      <div className={styles.costItem}>
+                        <span>Test:</span>
+                        <span>{formatCost(costStats.testCost)}</span>
+                      </div>
+                    )}
+                    {costStats.reviewCost > 0 && (
+                      <div className={styles.costItem}>
+                        <span>Review:</span>
+                        <span>{formatCost(costStats.reviewCost)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

@@ -34,6 +34,16 @@ class TokenStats(BaseModel):
     executionCount: int = 0
 
 
+class CostStats(BaseModel):
+    """Schema for cost statistics."""
+    totalCost: float = 0.0
+    planCost: float = 0.0
+    implementCost: float = 0.0
+    testCost: float = 0.0
+    reviewCost: float = 0.0
+    currency: str = "USD"
+
+
 class ActiveExecution(BaseModel):
     """Schema for active execution info."""
     id: str
@@ -139,6 +149,8 @@ class CardResponse(BaseModel):
     diff_stats: Optional[DiffStats] = Field(None, alias="diffStats")
     # Token stats
     token_stats: Optional[TokenStats] = Field(None, alias="tokenStats")
+    # Cost stats
+    cost_stats: Optional[CostStats] = Field(None, alias="costStats")
 
     @property
     def is_finalized(self) -> bool:

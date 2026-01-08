@@ -3,8 +3,10 @@ from sqlalchemy import select, update, delete, func
 from typing import Optional, List
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from ..models.execution import Execution, ExecutionLog, ExecutionStatus
 from ..cache import execution_cache
+from ..services.cost_calculator import CostCalculator
 
 class ExecutionRepository:
     def __init__(self, db: AsyncSession):
@@ -216,7 +218,7 @@ class ExecutionRepository:
         total_tokens: int,
         model_used: str = None
     ):
-        """Atualiza token usage de uma execucao"""
+        """Atualiza token usage de uma execucao e calcula o custo"""
         values = {
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
@@ -224,6 +226,18 @@ class ExecutionRepository:
         }
         if model_used:
             values["model_used"] = model_used
+
+        # Buscar a execução para calcular o custo
+        result = await self.db.execute(
+            select(Execution).where(Execution.id == execution_id)
+        )
+        execution = result.scalar_one_or_none()
+
+        if execution and model_used:
+            # Calcular custo baseado no modelo e tokens
+            from ..config.pricing import calculate_cost
+            cost = calculate_cost(model_used, input_tokens, output_tokens)
+            values["execution_cost"] = cost
 
         await self.db.execute(
             update(Execution)
@@ -250,3 +264,15 @@ class ExecutionRepository:
             "totalTokens": row.total_tokens or 0,
             "executionCount": row.execution_count or 0
         }
+
+    async def get_cost_stats_for_card(self, card_id: str) -> dict:
+        """Retorna estatísticas agregadas de custos para um card"""
+        # Buscar todas as execuções do card
+        result = await self.db.execute(
+            select(Execution)
+            .where(Execution.card_id == card_id)
+        )
+        executions = result.scalars().all()
+
+        # Calcular breakdown de custos usando o serviço
+        return CostCalculator.calculate_cost_breakdown(executions)
