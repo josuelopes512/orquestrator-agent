@@ -17,7 +17,7 @@ interface ColumnProps {
   fetchLogsHistory?: (cardId: string) => Promise<{ cardId: string; history: ExecutionHistory[] } | null>;
 }
 
-export function Column({ column, cards, onAddCard, onRemoveCard, onUpdateCard, getExecutionStatus, getWorkflowStatus, onRunWorkflow, isCollapsed, onToggleCollapse, fetchLogsHistory }: ColumnProps) {
+export function Column({ column, cards, onRemoveCard, onUpdateCard, getExecutionStatus, getWorkflowStatus, onRunWorkflow, isCollapsed, onToggleCollapse, fetchLogsHistory }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });

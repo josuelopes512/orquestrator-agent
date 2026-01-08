@@ -1,41 +1,20 @@
 .board {
   display: flex;
-  gap: var(--space-6);
+  gap: var(--space-2); /* Reduced gap as columns have padding-right */
+  padding: var(--space-4) var(--space-2);
   min-height: calc(100vh - 120px);
-  padding-bottom: var(--space-8);
-  animation: boardFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: auto; /* Allow horizontal scroll */
+  align-items: flex-start; /* Align columns to top */
 }
 
-@keyframes boardFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Ensure nice scrolling */
+.board::-webkit-scrollbar {
+  height: 8px;
 }
-
-/* Staggered column animation - mais suave */
-.board > *:nth-child(1) { animation-delay: 0ms; }
-.board > *:nth-child(2) { animation-delay: 40ms; }
-.board > *:nth-child(3) { animation-delay: 80ms; }
-.board > *:nth-child(4) { animation-delay: 120ms; }
-.board > *:nth-child(5) { animation-delay: 160ms; }
-.board > *:nth-child(6) { animation-delay: 200ms; }
-
-.board > * {
-  animation: columnSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+.board::-webkit-scrollbar-thumb {
+  background: var(--bg-elevated);
+  border-radius: 4px;
 }
-
-@keyframes columnSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.board::-webkit-scrollbar-track {
+  background: transparent;
 }

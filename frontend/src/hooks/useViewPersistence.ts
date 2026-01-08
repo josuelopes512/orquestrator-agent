@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { ModuleType } from '../types';
+import { ModuleType } from '../layouts/WorkspaceLayout';
 
 const VIEW_STORAGE_KEY = 'kanban_current_view';
 const DEFAULT_VIEW: ModuleType = 'dashboard';

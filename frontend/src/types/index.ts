@@ -76,6 +76,8 @@ export interface Card {
   diffStats?: DiffStats;
   // Campos para token tracking
   tokenStats?: TokenStats;
+  // Status de merge
+  mergeStatus?: MergeStatus;
 }
 
 export interface Column {
@@ -203,4 +205,5 @@ export interface ActiveBranch {
   cardId: string;
   cardTitle: string;
   cardColumn: string;
+  mergeStatus?: MergeStatus;
 }

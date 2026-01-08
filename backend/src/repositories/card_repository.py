@@ -92,6 +92,10 @@ class CardRepository:
         """
         Move a card to a new column with SDLC and finalization validation.
 
+        IMPORTANTE: Este método NÃO limpa o activeExecution do card, permitindo
+        que o histórico de logs permaneça acessível mesmo após o card ser movido
+        para a coluna "done".
+
         Returns:
             tuple: (card, error_message) - card if successful, error_message if failed
         """
@@ -101,19 +105,14 @@ class CardRepository:
 
         current_column = card.column_id
 
-        # Verificar se o card está finalizado
-        finalized_columns = ['done', 'archived', 'cancelado']
-        if current_column not in finalized_columns and current_column != new_column_id:
-            # Card não finalizado - apenas permitir transições SDLC válidas
+        # Validação SDLC: verificar se a transição é permitida
+        if current_column != new_column_id:
             allowed = ALLOWED_TRANSITIONS.get(current_column, [])
             if new_column_id not in allowed:
-                return None, f"Card precisa ser finalizado antes de poder ser movido. Finalize movendo para Done, Archived ou Cancelado."
+                return None, f"Invalid transition from '{current_column}' to '{new_column_id}'. Allowed: {allowed}"
 
-        # Validação SDLC existente
-        allowed = ALLOWED_TRANSITIONS.get(current_column, [])
-        if new_column_id not in allowed and current_column != new_column_id:
-            return None, f"Invalid transition from '{current_column}' to '{new_column_id}'. Allowed: {allowed}"
-
+        # Mover card para nova coluna
+        # IMPORTANTE: NÃO limpar activeExecution aqui para preservar histórico de logs
         card.column_id = new_column_id
         await self.session.flush()
         await self.session.refresh(card)

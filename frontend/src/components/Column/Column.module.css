@@ -1,93 +1,55 @@
+/* Column - Deep Dark Minimalist */
+
 .column {
-  flex: 0 0 340px;
+  flex: 0 0 320px;
   display: flex;
   flex-direction: column;
-  background: var(--zen-white);
-  border: 1px solid var(--zen-gray-200);
+  background: transparent; /* No background for column container to blend */
   border-radius: var(--radius-lg);
-  padding: var(--space-5);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-right: var(--space-2); /* Spacing between columns */
   position: relative;
-  overflow: visible;
+  transition: all 0.3s ease;
 }
 
-/* Drop zone ativo */
-.columnOver {
-  background: var(--zen-primary-subtle);
-  border-color: var(--zen-primary-light);
-  border-width: 2px;
-  border-style: dashed;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
-  transform: scale(1.01);
-}
-
+/* Column Header - Floating pill style */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-4);
-  padding: var(--space-2) var(--space-2);
-  min-height: 44px; /* Garantir altura mínima para acomodar botão */
+  padding: var(--space-3);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .headerLeft {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-}
-
-.headerActions {
-  display: flex;
-  align-items: center;
   gap: var(--space-2);
-  margin-left: auto;
 }
 
 .title {
   font-family: var(--font-display);
-  font-size: var(--text-sm);
+  font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--zen-gray-500);
-  transition: color 0.2s ease;
-}
-
-.column:hover .title {
-  color: var(--zen-gray-600);
-}
-
-.columnOver .title {
-  color: var(--zen-primary);
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  transition: color 0.2s;
 }
 
 .count {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  height: 32px;
-  padding: 0 var(--space-2);
-  font-family: var(--font-display);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--zen-gray-600);
-  background: var(--zen-gray-50);
-  border: 1px solid var(--zen-gray-200);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
   border-radius: var(--radius-sm);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.column:hover .count {
-  color: var(--zen-gray-700);
-  background: var(--zen-gray-100);
-  border-color: var(--zen-gray-300);
-}
-
-.columnOver .count {
-  color: var(--zen-primary);
-  background: var(--zen-primary-subtle);
-  border-color: var(--zen-primary-light);
+  background: var(--bg-elevated);
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-subtle);
 }
 
 .cards {
@@ -95,178 +57,86 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  min-height: 120px;
-  padding: var(--space-1);
+  padding-bottom: var(--space-8);
+  min-height: 200px;
+}
+
+/* Active Drop Zone */
+.columnOver {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-lg);
+}
+
+.columnOver .header {
+  border-color: var(--border-highlight);
+  background: var(--bg-elevated);
 }
 
 /* ========================================
-   UNIQUE LANE BORDERS - Zen Minimalista
+   Column Specific Colors (Icons & Accents)
    ======================================== */
 
-/* BACKLOG - Purple suave */
-.column_backlog {
-  border-top: 3px solid #a78bfa;
-}
+/* BACKLOG */
+.column_backlog .title { color: var(--col-backlog); }
+.column_backlog .header { border-left: 3px solid var(--col-backlog); }
 
-.column_backlog .title {
-  color: #7c3aed;
-}
+/* PLAN */
+.column_plan .title { color: var(--col-plan); }
+.column_plan .header { border-left: 3px solid var(--col-plan); }
 
-.column_backlog .count {
-  background: rgba(167, 139, 250, 0.1);
-  border-color: #a78bfa;
-  color: #7c3aed;
-}
+/* IMPLEMENT */
+.column_implement .title { color: var(--col-implement); }
+.column_implement .header { border-left: 3px solid var(--col-implement); }
 
-/* PLAN - Indigo/Roxo */
-.column_plan {
-  border-top: 3px solid #818cf8;
-}
+/* TEST */
+.column_test .title { color: var(--col-test); }
+.column_test .header { border-left: 3px solid var(--col-test); }
 
-.column_plan .title {
-  color: #818cf8;
-}
+/* REVIEW */
+.column_review .title { color: var(--col-review); }
+.column_review .header { border-left: 3px solid var(--col-review); }
 
-.column_plan .count {
-  background: rgba(129, 140, 248, 0.15);
-  border-color: #818cf8;
-  color: #818cf8;
-}
+/* DONE */
+.column_done .title { color: var(--col-done); }
+.column_done .header { border-left: 3px solid var(--col-done); }
 
-/* IMPLEMENT - Cyan destaque (sem fundo especial) */
-.column_implement {
-  border-top: 3px solid #00d4ff;
-}
+/* ARCHIVED */
+.column_archived { opacity: 0.6; }
+.column_archived .header { border-left: 3px solid var(--text-disabled); }
 
-.column_implement .title {
-  color: #00d4ff;
-  font-weight: 700;
-}
+/* CANCELADO */
+.column_cancelado .header { border-left: 3px solid var(--accent-danger); }
+.column_cancelado .title { color: var(--accent-danger); }
 
-.column_implement .count {
-  background: #00d4ff;
-  border-color: #33ddff;
-  color: #0a0a0f;
-}
 
-/* TEST - Azul info */
-.column_test {
-  border-top: 3px solid var(--zen-info);
-}
-
-.column_test .title {
-  color: var(--zen-info);
-}
-
-.column_test .count {
-  background: var(--zen-info-subtle);
-  border-color: var(--zen-info-light);
-  color: var(--zen-info);
-}
-
-/* REVIEW - Amber */
-.column_review {
-  border-top: 3px solid var(--zen-warning);
-}
-
-.column_review .title {
-  color: var(--zen-warning);
-}
-
-.column_review .count {
-  background: var(--zen-warning-subtle);
-  border-color: var(--zen-warning-light);
-  color: var(--zen-warning);
-}
-
-/* DONE - Verde sucesso */
-.column_done {
-  border-top: 3px solid var(--zen-success);
-  background: var(--zen-success-subtle);
-}
-
-.column_done .title {
-  color: var(--zen-success);
-  font-weight: 700;
-}
-
-.column_done .count {
-  background: var(--zen-success);
-  border-color: #16a34a;
-  color: white;
-}
-
-/* ARCHIVED - Gray neutro */
-.column_archived {
-  border-top: 3px solid var(--zen-gray-300);
-  background: rgba(0, 0, 0, 0.02);
-}
-
-.column_archived .title {
-  color: var(--zen-gray-400);
-}
-
-.column_archived .count {
-  background: var(--zen-gray-100);
-  border-color: var(--zen-gray-300);
-  color: var(--zen-gray-500);
-}
-
-/* CANCELADO - Vermelho erro */
-.column_cancelado {
-  border-top: 3px solid var(--zen-error);
-  background: var(--zen-error-subtle);
-  opacity: 0.9;
-}
-
-.column_cancelado .title {
-  color: var(--zen-error);
-}
-
-.column_cancelado .count {
-  background: var(--zen-error-subtle);
-  border-color: var(--zen-error-light);
-  color: var(--zen-error);
-}
-
-.column_cancelado.collapsed {
-  opacity: 0.75;
-}
-
-/* Collapsed state */
+/* Collapsed State */
 .column.collapsed {
-  flex: 0 0 80px; /* Largura reduzida quando colapsada */
-  min-width: 80px;
+  flex: 0 0 60px;
+  min-width: 60px;
 }
 
 .column.collapsed .header {
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-1);
+  height: auto;
 }
 
 .column.collapsed .title {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   transform: rotate(180deg);
+  margin-top: var(--space-2);
 }
 
-/* Clickable header (para Archived e Cancelado) */
+.column.collapsed .cards {
+  display: none;
+}
+
+/* Header interactions */
 .clickableHeader {
-  position: relative;
-  user-select: none;
-  transition: background 0.2s;
+  cursor: pointer;
 }
-
 .clickableHeader:hover {
-  background: rgba(156, 163, 175, 0.05);
-  border-radius: var(--radius-md);
-}
-
-/* Collapse indicator */
-.collapseIndicator {
-  font-size: 12px;
-  color: var(--text-muted);
-  transition: transform 0.2s;
-  margin-left: 4px;
+  background: var(--bg-elevated);
 }

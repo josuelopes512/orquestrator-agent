@@ -30,6 +30,7 @@ interface KanbanPageProps {
   onProjectSwitch: (project: Project | null) => void;
   onProjectLoad: (project: Project | null) => void;
   onCardCreated?: (newCard: CardType) => void;
+  fetchLogsHistory?: (cardId: string) => Promise<{ cardId: string; history: any[] } | null>;
 }
 
 const KanbanPage = ({
@@ -54,6 +55,7 @@ const KanbanPage = ({
   onProjectSwitch,
   onProjectLoad,
   onCardCreated,
+  fetchLogsHistory,
 }: KanbanPageProps) => {
   return (
     <div className={styles.kanbanPage}>
@@ -98,6 +100,7 @@ const KanbanPage = ({
             onToggleArchivedCollapse={onToggleArchivedCollapse}
             isCanceladoCollapsed={isCanceladoCollapsed}
             onToggleCanceladoCollapse={onToggleCanceladoCollapse}
+            fetchLogsHistory={fetchLogsHistory}
           />
           <DragOverlay>
             {activeCard ? (

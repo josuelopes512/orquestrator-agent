@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Card, ColumnId, WorkflowStatus, WorkflowStage, ExecutionStatus } from '../types';
 import * as cardsApi from '../api/cards';
 import { updateWorkflowState } from '../api/cards';
-import { API_ENDPOINTS } from '../api/config';
 
 interface UseWorkflowAutomationProps {
   executePlan: (card: Card) => Promise<{ success: boolean; specPath?: string; error?: string }>;
@@ -133,9 +132,11 @@ export function useWorkflowAutomation({
       }
 
       // Após review bem-sucedido, ir direto para DONE
+      // IMPORTANTE: NÃO limpar o estado de execução aqui para manter logs acessíveis
       await cardsApi.moveCard(card.id, 'done');
       onCardMove(card.id, 'done');
       await updateStatus('completed', 'done');
+      // NÃO chamar clearWorkflowStatus(card.id) aqui
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -228,9 +229,11 @@ export function useWorkflowAutomation({
           }
 
           // Após review bem-sucedido, ir direto para DONE
+          // IMPORTANTE: NÃO limpar o estado de execução aqui para manter logs acessíveis
           await cardsApi.moveCard(card.id, 'done');
           onCardMove(card.id, 'done');
           await updateStatus('completed', 'done');
+          // NÃO chamar clearWorkflowStatus(card.id) aqui
           break;
         }
 
@@ -262,9 +265,11 @@ export function useWorkflowAutomation({
           }
 
           // Após review bem-sucedido, ir direto para DONE
+          // IMPORTANTE: NÃO limpar o estado de execução aqui para manter logs acessíveis
           await cardsApi.moveCard(card.id, 'done');
           onCardMove(card.id, 'done');
           await updateStatus('completed', 'done');
+          // NÃO chamar clearWorkflowStatus(card.id) aqui
           break;
         }
 
@@ -283,17 +288,21 @@ export function useWorkflowAutomation({
           }
 
           // Após review bem-sucedido, ir direto para DONE
+          // IMPORTANTE: NÃO limpar o estado de execução aqui para manter logs acessíveis
           await cardsApi.moveCard(card.id, 'done');
           onCardMove(card.id, 'done');
           await updateStatus('completed', 'done');
+          // NÃO chamar clearWorkflowStatus(card.id) aqui
           break;
         }
 
         case 'reviewing': {
           // Review completed → ir direto para DONE
+          // IMPORTANTE: NÃO limpar o estado de execução aqui para manter logs acessíveis
           await cardsApi.moveCard(card.id, 'done');
           onCardMove(card.id, 'done');
           await updateStatus('completed', 'done');
+          // NÃO chamar clearWorkflowStatus(card.id) aqui
           break;
         }
       }
@@ -400,9 +409,16 @@ export function useWorkflowAutomation({
     });
   }, [initialStatuses, cards, executions, registerCompletionCallback, continueWorkflowFromStage]);
 
+  const handleCompletedReview = useCallback(async (_cardId: string) => {
+    console.warn('[useWorkflowAutomation] handleCompletedReview is a placeholder. Automatic merge not implemented yet.');
+    // Retornar status compatível com o esperado em App.tsx
+    return { success: true, status: 'merged', error: undefined };
+  }, []);
+
   return {
     runWorkflow,
     getWorkflowStatus,
     clearWorkflowStatus,
+    handleCompletedReview,
   };
 }

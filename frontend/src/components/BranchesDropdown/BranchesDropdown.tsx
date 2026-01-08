@@ -68,10 +68,10 @@ export const BranchesDropdown: React.FC = () => {
             branches.map((branch) => (
               <div
                 key={branch.cardId}
-                className={`${styles.branchItem} ${styles[branch.mergeStatus]}`}
+                className={`${styles.branchItem} ${styles[branch.mergeStatus || 'none']}`}
               >
                 <span className={styles.icon}>
-                  {getStatusIcon(branch.mergeStatus)}
+                  {getStatusIcon(branch.mergeStatus || 'none')}
                 </span>
                 <div className={styles.branchInfo}>
                   <div className={styles.branchName}>

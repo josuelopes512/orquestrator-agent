@@ -13,25 +13,25 @@ const navigationItems: NavigationItem[] = [
   {
     id: 'dashboard',
     label: 'Dashboard',
-    icon: '📊',
+    icon: 'fa-solid fa-chart-line',
     description: 'Visão geral do projeto',
   },
   {
     id: 'kanban',
     label: 'Kanban Board',
-    icon: '📋',
+    icon: 'fa-solid fa-table-columns',
     description: 'Gerenciar tarefas e workflow',
   },
   {
     id: 'chat',
     label: 'AI Assistant',
-    icon: '💬',
+    icon: 'fa-solid fa-comments',
     description: 'Chat com assistente AI',
   },
   {
     id: 'settings',
     label: 'Configurações',
-    icon: '⚙️',
+    icon: 'fa-solid fa-gear',
     description: 'Preferências do projeto',
   },
 ];
@@ -46,7 +46,9 @@ const Sidebar = ({ currentModule, onNavigate }: SidebarProps) => {
     <aside className={styles.sidebar}>
       <div className={styles.header}>
         <div className={styles.logo}>
-          <span className={styles.logoIcon}>🚀</span>
+          <span className={styles.logoIcon}>
+            <i className="fa-solid fa-rocket"></i>
+          </span>
           <h2 className={styles.logoText}>Workspace</h2>
         </div>
       </div>
@@ -62,7 +64,9 @@ const Sidebar = ({ currentModule, onNavigate }: SidebarProps) => {
                 onClick={() => onNavigate(item.id)}
                 aria-current={currentModule === item.id ? 'page' : undefined}
               >
-                <span className={styles.navIcon}>{item.icon}</span>
+                <span className={styles.navIcon}>
+                  <i className={item.icon}></i>
+                </span>
                 <div className={styles.navContent}>
                   <span className={styles.navLabel}>{item.label}</span>
                   <span className={styles.navDescription}>{item.description}</span>

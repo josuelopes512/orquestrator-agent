@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Card as CardType, ExecutionStatus, WorkflowStatus, ExecutionHistory } from '../../types';
 import { LogsModal } from '../LogsModal';
@@ -24,6 +24,7 @@ export function Card({ card, onRemove, onUpdateCard, isDragging = false, executi
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [removingImageId, setRemovingImageId] = useState<string | null>(null);
   const [logsHistory, setLogsHistory] = useState<ExecutionHistory[] | undefined>(undefined);
+  const [hasHistoricalLogs, setHasHistoricalLogs] = useState(false);
 
   // Card só é desabilitado se estiver ATIVAMENTE em execução
   // Permitir arrastar se: idle, completed, error, ou se a execução já terminou
@@ -55,6 +56,23 @@ export function Card({ card, onRemove, onUpdateCard, isDragging = false, executi
   };
 
   const hasLogs = executionStatus && executionStatus.logs && executionStatus.logs.length > 0;
+
+  // Buscar logs históricos para cards em done sem executionStatus ativo
+  useEffect(() => {
+    if (card.columnId === 'done' && !executionStatus && fetchLogsHistory) {
+      fetchLogsHistory(card.id).then(history => {
+        if (history && history.history.length > 0) {
+          setHasHistoricalLogs(true);
+          setLogsHistory(history.history);
+        }
+      }).catch(err => {
+        console.error('Failed to fetch historical logs:', err);
+      });
+    }
+  }, [card.columnId, card.id, executionStatus, fetchLogsHistory]);
+
+  // Determinar se deve mostrar botão de logs
+  const shouldShowLogs = hasLogs || (card.columnId === 'done' && hasHistoricalLogs);
 
   const handleRemoveImage = async (imageId: string) => {
     try {
@@ -231,7 +249,7 @@ export function Card({ card, onRemove, onUpdateCard, isDragging = false, executi
                         {message}
                       </span>
                     )}
-                    {hasLogs && (
+                    {shouldShowLogs && (
                       <button
                         className={styles.viewLogsButton}
                         onClick={async (e) => {
@@ -293,25 +311,47 @@ export function Card({ card, onRemove, onUpdateCard, isDragging = false, executi
           </button>
         )}
         {card.columnId === 'done' && (
-          <button
-            className={styles.createPrButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              // Placeholder: funcionalidade será implementada futuramente
-            }}
-            aria-label="Create Pull Request"
-            title="Criar Pull Request para esta feature"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="currentColor"
+          <>
+            <button
+              className={styles.createPrButton}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Placeholder: funcionalidade será implementada futuramente
+              }}
+              aria-label="Create Pull Request"
+              title="Criar Pull Request para esta feature"
             >
-              <path d="M13 3a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-1a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM3 13a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-1a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0-10a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM3 1a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm9.5 4.5V8h-1V5.5h1zM4 4.5v7h-1v-7h1zm8.5 8V10h1v2.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 0-1.5 1.5v.5h-1v-.5A2.5 2.5 0 0 1 5 13h7a.5.5 0 0 0 .5-.5z"/>
-            </svg>
-            Create PR
-          </button>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+              >
+                <path d="M13 3a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-1a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM3 13a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0-1a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm0-10a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM3 1a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm9.5 4.5V8h-1V5.5h1zM4 4.5v7h-1v-7h1zm8.5 8V10h1v2.5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 0-1.5 1.5v.5h-1v-.5A2.5 2.5 0 0 1 5 13h7a.5.5 0 0 0 .5-.5z"/>
+              </svg>
+              Create PR
+            </button>
+            {!executionStatus && hasHistoricalLogs && (
+              <button
+                className={styles.viewLogsButton}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  setIsLogsOpen(true);
+                }}
+                aria-label="View execution logs"
+                title="Ver histórico de execução"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/>
+                  <line x1="16" y1="17" x2="8" y2="17"/>
+                  <line x1="10" y1="9" x2="8" y2="9"/>
+                </svg>
+                View Logs
+              </button>
+            )}
+          </>
         )}
         {workflowStatus && workflowStatus.stage !== 'idle' && (
           <div className={styles.workflowProgress}>
@@ -367,15 +407,15 @@ export function Card({ card, onRemove, onUpdateCard, isDragging = false, executi
           </svg>
         </button>
       </div>
-      {executionStatus && (
+      {(executionStatus || (card.columnId === 'done' && hasHistoricalLogs)) && (
         <LogsModal
           isOpen={isLogsOpen}
           onClose={() => setIsLogsOpen(false)}
           title={card.title}
-          status={executionStatus.status}
-          logs={executionStatus.logs || []}
-          startedAt={executionStatus.startedAt}
-          completedAt={executionStatus.completedAt}
+          status={executionStatus?.status || 'success'}
+          logs={executionStatus?.logs || []}
+          startedAt={executionStatus?.startedAt}
+          completedAt={executionStatus?.completedAt}
           history={logsHistory}
         />
       )}

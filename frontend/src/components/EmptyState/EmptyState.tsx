@@ -23,31 +23,31 @@ const stateConfigs: Record<string, StateConfig> = {
     icon: '🎯',
     title: 'Nenhum plano em andamento',
     message: 'Mova cards para cá para iniciar o planejamento',
-    action: null
+    action: undefined
   },
   implement: {
     icon: '⚡',
     title: 'Aguardando implementação',
     message: 'Os cards aprovados aparecerão aqui para desenvolvimento',
-    action: null
+    action: undefined
   },
   test: {
     icon: '🧪',
     title: 'Pronto para testes',
     message: 'Implementações concluídas aparecerão aqui para validação',
-    action: null
+    action: undefined
   },
   review: {
     icon: '👀',
     title: 'Nada para revisar',
     message: 'Tarefas testadas aparecerão aqui para revisão final',
-    action: null
+    action: undefined
   },
   done: {
     icon: '✨',
     title: 'Nada concluído ainda',
     message: 'Continue trabalhando! Suas conquistas aparecerão aqui',
-    action: null
+    action: undefined
   }
 };
 

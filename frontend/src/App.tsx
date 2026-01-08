@@ -23,7 +23,6 @@ function App() {
   });
   const [cards, setCards] = useState<CardType[]>([]);
   const [activeCard, setActiveCard] = useState<CardType | null>(null);
-  const [activeTab, setActiveTab] = useState<'kanban' | 'chat'>('kanban');
   const [isLoading, setIsLoading] = useState(true);
   const [isArchivedCollapsed, setIsArchivedCollapsed] = useState(false);
   const [isCanceladoCollapsed, setIsCanceladoCollapsed] = useState(false);
@@ -110,10 +109,12 @@ function App() {
         }
 
         // Construir mapa de execuções ativas e workflow statuses
+        // IMPORTANTE: Incluir cards em "done" para manter histórico de logs acessível
         const executionsMap = new Map<string, ExecutionStatus>();
         const workflowMap = new Map<string, WorkflowStatus>();
 
         for (const card of loadedCards) {
+          // Carregar execução para TODOS os cards com activeExecution, incluindo os em "done"
           if (card.activeExecution) {
             console.log(`[App] Found card ${card.id} with activeExecution:`, card.activeExecution);
 
