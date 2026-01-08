@@ -44,6 +44,15 @@ export interface TokenStats {
   executionCount: number;
 }
 
+export interface CostStats {
+  totalCost: number;
+  planCost: number;
+  implementCost: number;
+  testCost: number;
+  reviewCost: number;
+  currency: string;
+}
+
 export interface ActiveExecution {
   id: string;
   status: 'idle' | 'running' | 'success' | 'error';
@@ -78,6 +87,8 @@ export interface Card {
   tokenStats?: TokenStats;
   // Status de merge
   mergeStatus?: MergeStatus;
+  // Campos para cost tracking
+  costStats?: CostStats;
 }
 
 export interface Column {

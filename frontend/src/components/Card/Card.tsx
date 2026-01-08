@@ -6,6 +6,7 @@ import { CardEditModal } from '../CardEditModal';
 import { BranchIndicator } from '../BranchIndicator';
 import { removeImage } from '../../utils/imageHandler';
 import { API_ENDPOINTS } from '../../api/config';
+import { formatCost } from '../../utils/costCalculator';
 import styles from './Card.module.css';
 
 interface CardProps {
@@ -288,6 +289,12 @@ export function Card({ card, onRemove, onUpdateCard, isDragging = false, executi
               <span>{card.tokenStats.totalTokens.toLocaleString()} tokens</span>
             </div>
           )}
+          {card.costStats && card.costStats.totalCost > 0 && (
+            <div className={styles.costStats}>
+              <span className={styles.costIcon}>$</span>
+              <span>{formatCost(card.costStats.totalCost)}</span>
+            </div>
+          )}
         </div>
         {card.columnId === 'backlog' && !isActivelyRunning && (
           <button
@@ -417,6 +424,7 @@ export function Card({ card, onRemove, onUpdateCard, isDragging = false, executi
           startedAt={executionStatus?.startedAt}
           completedAt={executionStatus?.completedAt}
           history={logsHistory}
+          costStats={card.costStats}
         />
       )}
       {onUpdateCard && (

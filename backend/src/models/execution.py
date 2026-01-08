@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Enum, Integer, Boolean
+from sqlalchemy import Column, String, Text, DateTime, ForeignKey, Enum, Integer, Boolean, Numeric
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -34,6 +34,9 @@ class Execution(Base):
     output_tokens = Column(Integer, nullable=True)
     total_tokens = Column(Integer, nullable=True)
     model_used = Column(String, nullable=True)
+
+    # Campo para custo da execução
+    execution_cost = Column(Numeric(10, 6), nullable=True)  # Até 10 dígitos, 6 decimais
 
     # Relacionamentos
     card = relationship("Card", back_populates="executions")

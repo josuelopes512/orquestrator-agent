@@ -658,3 +658,52 @@
     font-size: 10px;
   }
 }
+
+/* ============================================ */
+/* Cost Breakdown Styles                        */
+/* ============================================ */
+
+.costBreakdown {
+  grid-column: 1 / -1; /* Ocupar toda a linha */
+  animation-delay: 0.25s;
+}
+
+.costBreakdown .metadataIcon {
+  color: #22c55e;
+}
+
+.costBreakdown .metadataValue {
+  font-size: 16px;
+  font-weight: 700;
+  color: #22c55e;
+}
+
+.costDetails {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.costItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: rgba(34, 197, 94, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(34, 197, 94, 0.15);
+}
+
+.costItem span:first-child {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+}
+
+.costItem span:last-child {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
