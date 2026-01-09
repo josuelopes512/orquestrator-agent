@@ -20,13 +20,13 @@ class CostCalculator:
         Returns:
             Custo em USD como Decimal
         """
-        if not execution.model:
+        if not execution.model_used:
             return Decimal("0")
 
         input_tokens = execution.input_tokens or 0
         output_tokens = execution.output_tokens or 0
 
-        return calculate_cost(execution.model, input_tokens, output_tokens)
+        return calculate_cost(execution.model_used, input_tokens, output_tokens)
 
     @staticmethod
     def calculate_total_cost(executions: List[Execution]) -> Decimal:
@@ -66,7 +66,7 @@ class CostCalculator:
             cost = float(CostCalculator.calculate_execution_cost(execution))
 
             # Mapear tipo de execução para campo de custo
-            execution_type = execution.execution_type
+            execution_type = execution.workflow_stage
             if execution_type == "plan":
                 costs["planCost"] += cost
             elif execution_type == "implement":

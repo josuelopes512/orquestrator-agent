@@ -14,17 +14,23 @@ async def add_execution_cost_field():
 
     async with engine.begin() as conn:
         try:
-            print("Adicionando campo 'execution_cost' à tabela executions...")
-            await conn.execute(text("""
-                ALTER TABLE executions
-                ADD COLUMN IF NOT EXISTS execution_cost NUMERIC(10, 6);
-            """))
+            # Verificar se a coluna já existe
+            result = await conn.execute(text("PRAGMA table_info(executions)"))
+            columns = [row[1] for row in result.fetchall()]
 
-            print("Campo execution_cost adicionado com sucesso!")
+            if 'execution_cost' not in columns:
+                print("Adicionando campo 'execution_cost' à tabela executions...")
+                await conn.execute(text("""
+                    ALTER TABLE executions
+                    ADD COLUMN execution_cost NUMERIC(10, 6);
+                """))
+                print("Campo execution_cost adicionado com sucesso!")
+            else:
+                print("Campo execution_cost já existe, pulando migração.")
 
         except Exception as e:
             print(f"Erro ao adicionar campo: {e}")
-            # Se o campo já existir ou houver outro erro, continuar
+            # Se houver erro, continuar
             pass
 
 async def main():

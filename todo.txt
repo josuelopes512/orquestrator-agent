@@ -21,8 +21,8 @@ esse novo card deve voltar para in-progress - Precisa melhorar - OK
 * Utilizar worktree para solicitações em paralelo - OK
 * Não permitir arrastar para outras raias enquanto n tiver finalizado - OK
 * Ensinar o claude code a abrir páginas web e testar a aplicação
-* Adicionar estatísticas para cada card - Fazendo agora
-* git diff no modal do card
+* Adicionar estatísticas para cada card - OK
+* git diff no modal do card 
 * Melhorias visualização de processos, fluxos, diagramas, tree, etc
 * Dar vida ao botão de criar PR
 * Dashboard de métricas por projeto: total tokens, tokens/dia, tokens/horário, ms de conclusão de card, etc 
