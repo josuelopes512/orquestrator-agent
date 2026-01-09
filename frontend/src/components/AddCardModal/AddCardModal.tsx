@@ -8,6 +8,7 @@ import {
 } from '../../utils/imageHandler';
 import { useDraft } from '../../hooks/useDraft';
 import { fetchGitBranches, type GitBranch } from '../../api/git';
+import { ModelCard, type ModelCardData } from '../ModelCard';
 import styles from './AddCardModal.module.css';
 
 interface AddCardModalProps {
@@ -25,16 +26,6 @@ interface AddCardModalProps {
   }) => Promise<void>;
   title?: string;
   submitButtonText?: string;
-}
-
-interface ModelCardData {
-  value: ModelType;
-  label: string;
-  provider: 'anthropic' | 'google';
-  tagline: string;
-  performance: string;
-  icon: string;
-  accent: string;
 }
 
 const MODEL_CARDS: ModelCardData[] = [
@@ -86,10 +77,30 @@ const MODEL_CARDS: ModelCardData[] = [
 ];
 
 const WORKFLOW_STAGES = [
-  { key: 'modelPlan', label: 'Plan', icon: '⚡', description: 'Strategy & architecture' },
-  { key: 'modelImplement', label: 'Implement', icon: '⚙', description: 'Code & build' },
-  { key: 'modelTest', label: 'Test', icon: '✓', description: 'Validate & verify' },
-  { key: 'modelReview', label: 'Review', icon: '◐', description: 'Polish & refine' }
+  {
+    key: 'modelPlan',
+    label: 'Planejamento',
+    icon: '📋',
+    description: 'Estratégia e arquitetura da implementação'
+  },
+  {
+    key: 'modelImplement',
+    label: 'Implementação',
+    icon: '🚀',
+    description: 'Codificação e desenvolvimento da solução'
+  },
+  {
+    key: 'modelTest',
+    label: 'Testes',
+    icon: '✅',
+    description: 'Validação e verificação da qualidade'
+  },
+  {
+    key: 'modelReview',
+    label: 'Revisão',
+    icon: '🔍',
+    description: 'Polimento e refinamento final'
+  }
 ];
 
 export function AddCardModal({ isOpen, onClose, onSubmit, title: modalTitle, submitButtonText }: AddCardModalProps) {
@@ -107,7 +118,6 @@ export function AddCardModal({ isOpen, onClose, onSubmit, title: modalTitle, sub
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [activeStage, setActiveStage] = useState<string | null>(null);
   const [baseBranch, setBaseBranch] = useState<string>('');
   const [availableBranches, setAvailableBranches] = useState<GitBranch[]>([]);
   const [defaultBranch, setDefaultBranch] = useState<string>('main');
@@ -184,7 +194,6 @@ export function AddCardModal({ isOpen, onClose, onSubmit, title: modalTitle, sub
         setModelReview('opus-4.5');
         setPreviewImages([]);
         setUploadError(null);
-        setActiveStage(null);
       }
     }
     if (!isOpen) {
@@ -536,37 +545,28 @@ export function AddCardModal({ isOpen, onClose, onSubmit, title: modalTitle, sub
 
             <div className={styles.workflowStages}>
               {WORKFLOW_STAGES.map((stage) => (
-                <div
-                  key={stage.key}
-                  className={`${styles.workflowStage} ${activeStage === stage.key ? styles.activeStage : ''}`}
-                >
+                <div key={stage.key} className={styles.stageSection}>
                   <div className={styles.stageHeader}>
-                    <span className={styles.stageIcon}>{stage.icon}</span>
+                    <div className={styles.stageIcon}>{stage.icon}</div>
                     <div className={styles.stageInfo}>
-                      <h4 className={styles.stageName}>{stage.label}</h4>
+                      <h3 className={styles.stageTitle}>{stage.label}</h3>
                       <p className={styles.stageDescription}>{stage.description}</p>
                     </div>
                   </div>
 
-                  <div className={styles.modelCards}>
-                    {MODEL_CARDS.map((model) => (
-                      <button
-                        key={model.value}
-                        type="button"
-                        className={`${styles.modelCard} ${styles[model.accent]} ${getModelValue(stage.key) === model.value ? styles.selected : ''}`}
-                        onClick={() => {
-                          updateModel(stage.key, model.value);
-                          setActiveStage(stage.key);
-                        }}
-                        disabled={isSubmitting}
-                      >
-                        <span className={styles.modelIcon}>{model.icon}</span>
-                        <span className={styles.modelName}>{model.label}</span>
-                        <span className={styles.modelTagline}>{model.tagline}</span>
-                        <span className={styles.modelPerformance}>{model.performance}</span>
-                        <div className={styles.modelGlow} />
-                      </button>
-                    ))}
+                  <div className={styles.modelCarousel}>
+                    <div className={styles.modelCarouselInner}>
+                      {MODEL_CARDS.map((model) => (
+                        <ModelCard
+                          key={model.value}
+                          model={model}
+                          selected={getModelValue(stage.key) === model.value}
+                          onSelect={() => {
+                            updateModel(stage.key, model.value);
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
