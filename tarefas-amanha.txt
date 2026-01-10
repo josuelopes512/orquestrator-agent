@@ -1,4 +1,0 @@
-Os hooks do Agent SDK foram implementados, mas os stats de input e output estão mostrando 0
->[502b3d33|review:criar-poema-jaja] [Agent] [INFO] Token usage - Input: 0, Output: 0, Total: 0
-
-Testar melhor os hooks

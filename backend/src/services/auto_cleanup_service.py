@@ -16,7 +16,7 @@ class AutoCleanupService:
 
     def __init__(self, db_session: AsyncSession):
         self.db = db_session
-        self.cleanup_after_days = 7  # Configurável
+        self.cleanup_after_minutes = 30  # Configurável
         self.enabled = True  # Configurável
 
     async def cleanup_done_cards(self) -> int:
@@ -29,7 +29,7 @@ class AutoCleanupService:
             logger.info("Auto-cleanup is disabled")
             return 0
 
-        cutoff_date = datetime.utcnow() - timedelta(days=self.cleanup_after_days)
+        cutoff_date = datetime.utcnow() - timedelta(minutes=self.cleanup_after_minutes)
 
         # Buscar cards em Done há mais tempo que o configurado
         result = await self.db.execute(

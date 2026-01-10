@@ -158,6 +158,22 @@ async def move_card(
     if error:
         raise HTTPException(status_code=400, detail=error)
 
+    # Auto-capture diff when moving to review or done
+    if move_data.column_id in ["review", "done"]:
+        if card.worktree_path and card.branch_name:
+            try:
+                diff_analyzer = DiffAnalyzer()
+                diff_stats = await diff_analyzer.capture_diff(
+                    card.worktree_path,
+                    card.branch_name
+                )
+                if diff_stats:
+                    card_update = CardUpdate(diff_stats=diff_stats)
+                    card = await repo.update(card_id, card_update)
+            except Exception as e:
+                # Log error but don't fail the move
+                print(f"Failed to capture diff for card {card_id}: {e}")
+
     return CardSingleResponse(card=CardResponse.model_validate(card))
 
 

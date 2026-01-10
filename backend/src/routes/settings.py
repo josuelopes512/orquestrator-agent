@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api/settings", tags=["settings"])
 class AutoCleanupSettings(BaseModel):
     """Auto-cleanup configuration settings."""
     enabled: bool
-    cleanup_after_days: int  # 1-30 days
+    cleanup_after_minutes: int  # 1-1440 minutes (1 day)
 
 
 class AutoCleanupResponse(BaseModel):
@@ -23,13 +23,13 @@ class AutoCleanupResponse(BaseModel):
 class UpdateAutoCleanupRequest(BaseModel):
     """Request to update auto-cleanup settings."""
     enabled: Optional[bool] = None
-    cleanup_after_days: Optional[int] = None
+    cleanup_after_minutes: Optional[int] = None
 
 
 # Em memória por enquanto (pode ser movido para DB/config file depois)
 _auto_cleanup_settings = AutoCleanupSettings(
     enabled=True,
-    cleanup_after_days=7
+    cleanup_after_minutes=30
 )
 
 
@@ -50,13 +50,13 @@ async def update_auto_cleanup_settings(request: UpdateAutoCleanupRequest):
     if request.enabled is not None:
         _auto_cleanup_settings.enabled = request.enabled
 
-    if request.cleanup_after_days is not None:
-        if request.cleanup_after_days < 1 or request.cleanup_after_days > 30:
+    if request.cleanup_after_minutes is not None:
+        if request.cleanup_after_minutes < 1 or request.cleanup_after_minutes > 1440:
             raise HTTPException(
                 status_code=400,
-                detail="cleanup_after_days must be between 1 and 30"
+                detail="cleanup_after_minutes must be between 1 and 1440"
             )
-        _auto_cleanup_settings.cleanup_after_days = request.cleanup_after_days
+        _auto_cleanup_settings.cleanup_after_minutes = request.cleanup_after_minutes
 
     return AutoCleanupResponse(
         success=True,

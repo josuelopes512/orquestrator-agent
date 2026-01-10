@@ -89,6 +89,13 @@ class ExecutionRepository:
 
         return log
 
+    async def get_by_id(self, execution_id: str) -> Optional[Execution]:
+        """Busca execução por ID"""
+        result = await self.db.execute(
+            select(Execution).where(Execution.id == execution_id)
+        )
+        return result.scalar_one_or_none()
+
     async def update_execution_status(
         self,
         execution_id: str,
@@ -114,6 +121,46 @@ class ExecutionRepository:
             .values(**values)
         )
         await self.db.commit()
+
+    async def update_execution_status_with_metrics(
+        self,
+        execution_id: str,
+        status: ExecutionStatus,
+        project_id: str,
+        result: Optional[str] = None,
+        workflow_stage: Optional[str] = None
+    ):
+        """
+        Atualiza status de uma execução e coleta métricas automaticamente.
+
+        Args:
+            execution_id: ID da execução
+            status: Novo status
+            project_id: ID do projeto para métricas
+            result: Resultado da execução (opcional)
+            workflow_stage: Estágio do workflow (opcional)
+        """
+        # Primeiro atualiza o status
+        await self.update_execution_status(
+            execution_id=execution_id,
+            status=status,
+            result=result,
+            workflow_stage=workflow_stage
+        )
+
+        # Se status final (SUCCESS ou ERROR), coleta métricas
+        if status in [ExecutionStatus.SUCCESS, ExecutionStatus.ERROR]:
+            try:
+                from ..services.metrics_collector import MetricsCollector
+
+                # Busca a execução atualizada
+                execution = await self.get_by_id(execution_id)
+                if execution:
+                    collector = MetricsCollector(self.db)
+                    await collector.collect_from_execution(execution, project_id)
+            except Exception as e:
+                # Log erro mas não falha a operação principal
+                print(f"[MetricsCollector] Erro ao coletar métricas: {e}")
 
     async def get_active_execution(self, card_id: str) -> Optional[Execution]:
         """Busca execução ativa de um card"""

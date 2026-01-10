@@ -2,7 +2,7 @@ import { API_CONFIG } from './config';
 
 export interface AutoCleanupSettings {
   enabled: boolean;
-  cleanup_after_days: number;
+  cleanup_after_minutes: number;
 }
 
 export interface AutoCleanupResponse {
@@ -12,7 +12,7 @@ export interface AutoCleanupResponse {
 
 export interface UpdateAutoCleanupRequest {
   enabled?: boolean;
-  cleanup_after_days?: number;
+  cleanup_after_minutes?: number;
 }
 
 const SETTINGS_BASE_URL = `${API_CONFIG.BASE_URL}/api/settings`;

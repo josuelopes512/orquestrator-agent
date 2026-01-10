@@ -5,7 +5,7 @@ import { getAutoCleanupSettings, updateAutoCleanupSettings, AutoCleanupSettings 
 const SettingsPage = () => {
   const [autoCleanupSettings, setAutoCleanupSettings] = useState<AutoCleanupSettings>({
     enabled: true,
-    cleanup_after_days: 7,
+    cleanup_after_minutes: 30,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,19 +145,19 @@ const SettingsPage = () => {
                 <input
                   type="number"
                   min="1"
-                  max="30"
-                  value={autoCleanupSettings.cleanup_after_days}
+                  max="1440"
+                  value={autoCleanupSettings.cleanup_after_minutes}
                   onChange={(e) => {
                     const value = parseInt(e.target.value);
-                    if (value >= 1 && value <= 30) {
-                      handleUpdateAutoCleanup({ cleanup_after_days: value });
+                    if (value >= 1 && value <= 1440) {
+                      handleUpdateAutoCleanup({ cleanup_after_minutes: value });
                     }
                   }}
                   disabled={loading}
                   className={styles.input}
                   style={{ width: '80px', marginLeft: '8px', marginRight: '8px' }}
                 />
-                dias
+                minutos
               </label>
             </div>
           </div>
