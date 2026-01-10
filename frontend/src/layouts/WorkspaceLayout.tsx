@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import Sidebar from '../components/Navigation/Sidebar';
 import styles from './WorkspaceLayout.module.css';
 
-export type ModuleType = 'dashboard' | 'kanban' | 'chat' | 'metrics' | 'settings';
+export type ModuleType = 'dashboard' | 'kanban' | 'chat' | 'settings';
 
 interface WorkspaceLayoutProps {
   children: ReactNode;
@@ -14,7 +14,6 @@ const moduleLabels: Record<ModuleType, string> = {
   dashboard: 'Dashboard',
   kanban: 'Kanban Board',
   chat: 'AI Assistant',
-  metrics: 'Métricas',
   settings: 'Configurações',
 };
 

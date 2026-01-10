@@ -11,7 +11,6 @@ import WorkspaceLayout, { ModuleType } from './layouts/WorkspaceLayout';
 import HomePage from './pages/HomePage';
 import KanbanPage from './pages/KanbanPage';
 import ChatPage from './pages/ChatPage';
-import MetricsPage from './pages/MetricsPage';
 import SettingsPage from './pages/SettingsPage';
 import styles from './App.module.css';
 
@@ -584,9 +583,6 @@ function App() {
             onNewChat={createNewSession}
           />
         );
-
-      case 'metrics':
-        return <MetricsPage projectId={currentProject?.id || 'default'} />;
 
       case 'settings':
         return <SettingsPage />;
