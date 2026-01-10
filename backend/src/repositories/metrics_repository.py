@@ -1,7 +1,7 @@
 """Repository para operações com métricas."""
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, desc, asc
+from sqlalchemy import select, func, and_, or_, desc, asc, case
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime, date, timedelta
 from decimal import Decimal
@@ -115,7 +115,7 @@ class MetricsRepository:
 
         elif group_by == "hour":
             query = select(
-                func.date_trunc('hour', ExecutionMetrics.started_at).label('timestamp'),
+                func.strftime('%Y-%m-%d %H:00:00', ExecutionMetrics.started_at).label('timestamp'),
                 func.sum(ExecutionMetrics.input_tokens).label('input_tokens'),
                 func.sum(ExecutionMetrics.output_tokens).label('output_tokens'),
                 func.sum(ExecutionMetrics.total_tokens).label('total_tokens')
@@ -128,7 +128,7 @@ class MetricsRepository:
 
         else:  # day
             query = select(
-                func.date_trunc('day', ExecutionMetrics.started_at).label('timestamp'),
+                func.date(ExecutionMetrics.started_at).label('timestamp'),
                 func.sum(ExecutionMetrics.input_tokens).label('input_tokens'),
                 func.sum(ExecutionMetrics.output_tokens).label('output_tokens'),
                 func.sum(ExecutionMetrics.total_tokens).label('total_tokens')
@@ -231,7 +231,7 @@ class MetricsRepository:
 
         else:  # day
             query = select(
-                func.date_trunc('day', ExecutionMetrics.started_at).label('date'),
+                func.date(ExecutionMetrics.started_at).label('date'),
                 func.sum(ExecutionMetrics.estimated_cost_usd).label('total_cost'),
                 func.sum(ExecutionMetrics.total_tokens).label('total_tokens'),
                 func.count(ExecutionMetrics.id).label('execution_count')
@@ -294,7 +294,10 @@ class MetricsRepository:
             func.max(ExecutionMetrics.duration_ms).label('max_execution_time'),
             func.count(ExecutionMetrics.id).label('total_executions'),
             func.sum(
-                func.cast(ExecutionMetrics.status == 'success', type_=func.INTEGER())
+                case(
+                    (ExecutionMetrics.status == 'success', 1),
+                    else_=0
+                )
             ).label('successful_executions')
         ).where(ExecutionMetrics.project_id == project_id)
 

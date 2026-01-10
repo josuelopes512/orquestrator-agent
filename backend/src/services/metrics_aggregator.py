@@ -62,7 +62,7 @@ class MetricsAggregator:
 
         # Buscar dados diários
         query = select(
-            func.date_trunc('day', ExecutionMetrics.started_at).label('date'),
+            func.date(ExecutionMetrics.started_at).label('date'),
             func.sum(ExecutionMetrics.total_tokens).label('total_tokens')
         ).where(
             and_(
@@ -144,7 +144,9 @@ class MetricsAggregator:
                 "mean": 0,
                 "min": 0,
                 "max": 0,
-                "outliers": []
+                "stdDev": 0,
+                "outlierCount": 0,
+                "outlierThreshold": 0
             }
 
         durations_sorted = sorted(durations)

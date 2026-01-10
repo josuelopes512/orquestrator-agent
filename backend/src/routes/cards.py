@@ -98,7 +98,7 @@ async def get_card(card_id: str, db: AsyncSession = Depends(get_db)):
     if not card:
         raise HTTPException(status_code=404, detail="Card not found")
 
-    card_dict = card.to_dict()
+    card_dict = card.__dict__.copy()
 
     # Buscar token stats para o card
     token_stats = await exec_repo.get_token_stats_for_card(card.id)
