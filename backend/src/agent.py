@@ -555,6 +555,9 @@ async def execute_plan_gemini(
 
     print(f"[Agent] Initial cwd parameter: {cwd}")
 
+    # Variável para armazenar project_id para métricas
+    project_id = None
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
@@ -562,9 +565,11 @@ async def execute_plan_gemini(
         active_project = result.scalar_one_or_none()
         if active_project:
             project_path = active_project.path
+            project_id = active_project.id
             print(f"[Agent] Found active project: {project_path}")
         else:
             project_path = str(Path(__file__).parent.parent.parent)
+            project_id = "default-project"
             print(f"[Agent] No active project, using root project: {project_path}")
 
         # Obter worktree para isolamento
@@ -647,9 +652,10 @@ async def execute_plan_gemini(
             add_log(record, LogType.INFO, f"Caminho da spec: {spec_path}")
 
         if repo and execution_db:
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.SUCCESS,
+                project_id=project_id,
                 result=full_response
             )
             execution_data = await repo.get_execution_with_logs(card_id)
@@ -681,9 +687,10 @@ async def execute_plan_gemini(
                 log_type="error",
                 content=error_message
             )
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.ERROR,
+                project_id=project_id,
                 result=error_message
             )
             execution_data = await repo.get_execution_with_logs(card_id)
@@ -717,6 +724,9 @@ async def execute_implement_gemini(
 
     print(f"[Agent] Initial cwd parameter: {cwd}")
 
+    # Variável para armazenar project_id para métricas
+    project_id = None
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
@@ -724,9 +734,11 @@ async def execute_implement_gemini(
         active_project = result.scalar_one_or_none()
         if active_project:
             project_path = active_project.path
+            project_id = active_project.id
             print(f"[Agent] Found active project: {project_path}")
         else:
             project_path = str(Path(__file__).parent.parent.parent)
+            project_id = "default-project"
             print(f"[Agent] No active project, using root project: {project_path}")
 
         # Obter worktree para isolamento
@@ -813,9 +825,10 @@ async def execute_implement_gemini(
         add_log(record, LogType.INFO, "Implementação concluída com sucesso")
 
         if repo and execution_db:
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.SUCCESS,
+                project_id=project_id,
                 result=full_response
             )
             execution_data = await repo.get_execution_with_logs(card_id)
@@ -845,9 +858,10 @@ async def execute_implement_gemini(
                 log_type="error",
                 content=error_message
             )
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.ERROR,
+                project_id=project_id,
                 result=error_message
             )
             execution_data = await repo.get_execution_with_logs(card_id)
@@ -881,6 +895,9 @@ async def execute_test_implementation_gemini(
 
     print(f"[Agent] Initial cwd parameter: {cwd}")
 
+    # Variável para armazenar project_id para métricas
+    project_id = None
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
@@ -888,9 +905,11 @@ async def execute_test_implementation_gemini(
         active_project = result.scalar_one_or_none()
         if active_project:
             project_path = active_project.path
+            project_id = active_project.id
             print(f"[Agent] Found active project: {project_path}")
         else:
             project_path = str(Path(__file__).parent.parent.parent)
+            project_id = "default-project"
             print(f"[Agent] No active project, using root project: {project_path}")
 
         # Obter worktree para isolamento
@@ -977,9 +996,10 @@ async def execute_test_implementation_gemini(
         add_log(record, LogType.INFO, "Teste da implementação concluído com sucesso")
 
         if repo and execution_db:
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.SUCCESS,
+                project_id=project_id,
                 result=full_response
             )
             execution_data = await repo.get_execution_with_logs(card_id)
@@ -1009,9 +1029,10 @@ async def execute_test_implementation_gemini(
                 log_type="error",
                 content=error_message
             )
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.ERROR,
+                project_id=project_id,
                 result=error_message
             )
             execution_data = await repo.get_execution_with_logs(card_id)
@@ -1045,6 +1066,9 @@ async def execute_review_gemini(
 
     print(f"[Agent] Initial cwd parameter: {cwd}")
 
+    # Variável para armazenar project_id para métricas
+    project_id = None
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
@@ -1052,9 +1076,11 @@ async def execute_review_gemini(
         active_project = result.scalar_one_or_none()
         if active_project:
             project_path = active_project.path
+            project_id = active_project.id
             print(f"[Agent] Found active project: {project_path}")
         else:
             project_path = str(Path(__file__).parent.parent.parent)
+            project_id = "default-project"
             print(f"[Agent] No active project, using root project: {project_path}")
 
         # Obter worktree para isolamento
@@ -1141,9 +1167,10 @@ async def execute_review_gemini(
         add_log(record, LogType.INFO, "Revisão concluída com sucesso")
 
         if repo and execution_db:
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.SUCCESS,
+                project_id=project_id,
                 result=full_response
             )
             execution_data = await repo.get_execution_with_logs(card_id)
@@ -1173,9 +1200,10 @@ async def execute_review_gemini(
                 log_type="error",
                 content=error_message
             )
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.ERROR,
+                project_id=project_id,
                 result=error_message
             )
             execution_data = await repo.get_execution_with_logs(card_id)
@@ -1216,6 +1244,9 @@ async def execute_plan(
 
     print(f"[Agent] Initial cwd parameter: {cwd}")
 
+    # Variável para armazenar project_id para métricas
+    project_id = None
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
@@ -1223,11 +1254,13 @@ async def execute_plan(
         active_project = result.scalar_one_or_none()
         if active_project:
             project_path = active_project.path
+            project_id = active_project.id
             print(f"[Agent] Found active project: {project_path}")
         else:
             # Fallback: usar o diretório raiz do orquestrator-agent
             # (3 níveis acima: agent.py -> src -> backend -> orquestrator-agent)
             project_path = str(Path(__file__).parent.parent.parent)
+            project_id = "default-project"
             print(f"[Agent] No active project, using root project: {project_path}")
 
         # Obter worktree para isolamento
@@ -1442,11 +1475,12 @@ async def execute_plan(
         if spec_path:
             add_log(record, LogType.INFO, f"Spec path: {spec_path}")
 
-        # Atualizar status no banco se disponível
+        # Atualizar status no banco se disponível (com coleta automática de métricas)
         if repo and execution_db:
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.SUCCESS,
+                project_id=project_id,
                 result=result_text
             )
             # Busca token stats e cost stats para notificacao
@@ -1486,16 +1520,17 @@ async def execute_plan(
         record.result = error_message
         add_log(record, LogType.ERROR, f"Execution error: {error_message}")
 
-        # Atualizar status de erro no banco se disponível
+        # Atualizar status de erro no banco se disponível (com coleta automática de métricas)
         if repo and execution_db:
             await repo.add_log(
                 execution_id=execution_db.id,
                 log_type="error",
                 content=error_message
             )
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.ERROR,
+                project_id=project_id,
                 result=error_message
             )
 
@@ -1545,6 +1580,9 @@ async def execute_implement(
 
     print(f"[Agent] Initial cwd parameter: {cwd}")
 
+    # Variável para armazenar project_id para métricas
+    project_id = None
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
@@ -1552,10 +1590,12 @@ async def execute_implement(
         active_project = result.scalar_one_or_none()
         if active_project:
             project_path = active_project.path
+            project_id = active_project.id
             print(f"[Agent] Found active project: {project_path}")
         else:
             # Fallback: usar o diretório raiz do orquestrator-agent
             project_path = str(Path(__file__).parent.parent.parent)
+            project_id = "default-project"
             print(f"[Agent] No active project, using root project: {project_path}")
 
         # Obter worktree para isolamento
@@ -1701,11 +1741,12 @@ async def execute_implement(
         record.result = result_text
         add_log(record, LogType.INFO, "Implementation completed successfully")
 
-        # Atualizar status no banco se disponível
+        # Atualizar status no banco se disponível (com coleta automática de métricas)
         if repo and execution_db:
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.SUCCESS,
+                project_id=project_id,
                 result=result_text
             )
             # Busca token stats e cost stats para notificacao
@@ -1743,16 +1784,17 @@ async def execute_implement(
         record.result = error_message
         add_log(record, LogType.ERROR, f"Execution error: {error_message}")
 
-        # Atualizar status de erro no banco se disponível
+        # Atualizar status de erro no banco se disponível (com coleta automática de métricas)
         if repo and execution_db:
             await repo.add_log(
                 execution_id=execution_db.id,
                 log_type="error",
                 content=error_message
             )
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.ERROR,
+                project_id=project_id,
                 result=error_message
             )
 
@@ -1861,6 +1903,9 @@ async def execute_test_implementation(
 
     print(f"[Agent] Initial cwd parameter: {cwd}")
 
+    # Variável para armazenar project_id para métricas
+    project_id = None
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
@@ -1868,10 +1913,12 @@ async def execute_test_implementation(
         active_project = result.scalar_one_or_none()
         if active_project:
             project_path = active_project.path
+            project_id = active_project.id
             print(f"[Agent] Found active project: {project_path}")
         else:
             # Fallback: usar o diretório raiz do orquestrator-agent
             project_path = str(Path(__file__).parent.parent.parent)
+            project_id = "default-project"
             print(f"[Agent] No active project, using root project: {project_path}")
 
         # Obter worktree para isolamento
@@ -2031,16 +2078,17 @@ async def execute_test_implementation(
             record.status = ExecutionStatus.ERROR
             add_log(record, LogType.ERROR, "Tests failed - creating fix card")
 
-            # Atualizar status de erro no banco se disponível
+            # Atualizar status de erro no banco se disponível (com coleta automática de métricas)
             if repo and execution_db:
                 await repo.add_log(
                     execution_id=execution_db.id,
                     log_type="error",
                     content="Tests failed - creating fix card"
                 )
-                await repo.update_execution_status(
+                await repo.update_execution_status_with_metrics(
                     execution_id=execution_db.id,
                     status=DBExecutionStatus.ERROR,
+                    project_id=project_id,
                     result="Tests failed"
                 )
 
@@ -2079,11 +2127,12 @@ async def execute_test_implementation(
             record.result = result_text
             add_log(record, LogType.INFO, "Test-implementation completed successfully")
 
-            # Atualizar status no banco se disponível
+            # Atualizar status no banco se disponível (com coleta automática de métricas)
             if repo and execution_db:
-                await repo.update_execution_status(
+                await repo.update_execution_status_with_metrics(
                     execution_id=execution_db.id,
                     status=DBExecutionStatus.SUCCESS,
+                    project_id=project_id,
                     result=result_text
                 )
                 # Busca token stats e cost stats para notificacao
@@ -2121,16 +2170,17 @@ async def execute_test_implementation(
         record.result = error_message
         add_log(record, LogType.ERROR, f"Execution error: {error_message}")
 
-        # Atualizar status de erro no banco se disponível
+        # Atualizar status de erro no banco se disponível (com coleta automática de métricas)
         if repo and execution_db:
             await repo.add_log(
                 execution_id=execution_db.id,
                 log_type="error",
                 content=error_message
             )
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.ERROR,
+                project_id=project_id,
                 result=error_message
             )
 
@@ -2193,6 +2243,9 @@ async def execute_review(
 
     print(f"[Agent] Initial cwd parameter: {cwd}")
 
+    # Variável para armazenar project_id para métricas
+    project_id = None
+
     async with async_session_maker() as session:
         result = await session.execute(
             select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
@@ -2200,10 +2253,12 @@ async def execute_review(
         active_project = result.scalar_one_or_none()
         if active_project:
             project_path = active_project.path
+            project_id = active_project.id
             print(f"[Agent] Found active project: {project_path}")
         else:
             # Fallback: usar o diretório raiz do orquestrator-agent
             project_path = str(Path(__file__).parent.parent.parent)
+            project_id = "default-project"
             print(f"[Agent] No active project, using root project: {project_path}")
 
         # Obter worktree para isolamento
@@ -2349,11 +2404,12 @@ async def execute_review(
         record.result = result_text
         add_log(record, LogType.INFO, "Review completed successfully")
 
-        # Atualizar status no banco se disponível
+        # Atualizar status no banco se disponível (com coleta automática de métricas)
         if repo and execution_db:
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.SUCCESS,
+                project_id=project_id,
                 result=result_text
             )
             # Busca token stats e cost stats para notificacao
@@ -2391,16 +2447,17 @@ async def execute_review(
         record.result = error_message
         add_log(record, LogType.ERROR, f"Execution error: {error_message}")
 
-        # Atualizar status de erro no banco se disponível
+        # Atualizar status de erro no banco se disponível (com coleta automática de métricas)
         if repo and execution_db:
             await repo.add_log(
                 execution_id=execution_db.id,
                 log_type="error",
                 content=error_message
             )
-            await repo.update_execution_status(
+            await repo.update_execution_status_with_metrics(
                 execution_id=execution_db.id,
                 status=DBExecutionStatus.ERROR,
+                project_id=project_id,
                 result=error_message
             )
 

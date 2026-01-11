@@ -2,8 +2,25 @@
  * API client for cards endpoints.
  */
 
-import type { Card, CardImage, ColumnId, ModelType, ActiveExecution, ExecutionLog, MergeStatus, TokenStats } from '../types';
+import type { Card, CardImage, ColumnId, ModelType, ActiveExecution, ExecutionLog, MergeStatus, TokenStats, DiffStats, FileDiff } from '../types';
 import { API_ENDPOINTS } from './config';
+
+// Raw response from backend (snake_case for nested objects)
+interface DiffStatsRaw {
+  files_added: string[];
+  files_modified: string[];
+  files_removed: string[];
+  lines_added: number;
+  lines_removed: number;
+  total_changes: number;
+  captured_at?: string;
+  branch_name?: string;
+  file_diffs?: Array<{
+    path: string;
+    status: string;
+    content: string;
+  }>;
+}
 
 interface CardResponse {
   id: string;
@@ -28,6 +45,8 @@ interface CardResponse {
   mergeStatus?: MergeStatus;
   // Token stats
   tokenStats?: TokenStats;
+  // Diff stats (snake_case from backend)
+  diffStats?: DiffStatsRaw;
 }
 
 export interface WorkflowStateUpdate {
@@ -43,6 +62,25 @@ interface CardsListResponse {
 interface CardSingleResponse {
   success: boolean;
   card: CardResponse;
+}
+
+function mapDiffStats(raw: DiffStatsRaw | undefined): DiffStats | undefined {
+  if (!raw) return undefined;
+  return {
+    filesAdded: raw.files_added,
+    filesModified: raw.files_modified,
+    filesRemoved: raw.files_removed,
+    linesAdded: raw.lines_added,
+    linesRemoved: raw.lines_removed,
+    totalChanges: raw.total_changes,
+    capturedAt: raw.captured_at,
+    branchName: raw.branch_name,
+    fileDiffs: raw.file_diffs?.map(fd => ({
+      path: fd.path,
+      status: fd.status as FileDiff['status'],
+      content: fd.content,
+    })),
+  };
 }
 
 function mapCardResponseToCard(response: CardResponse): Card {
@@ -64,6 +102,8 @@ function mapCardResponseToCard(response: CardResponse): Card {
     mergeStatus: response.mergeStatus || 'none',
     // Token stats
     tokenStats: response.tokenStats,
+    // Diff stats
+    diffStats: mapDiffStats(response.diffStats),
   };
 }
 
