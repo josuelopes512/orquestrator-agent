@@ -1,11 +1,15 @@
 """
 Chat service for managing chat sessions and conversations.
 Stores sessions in memory (runtime only, no persistence).
+Integrates with Kanban to provide context about tasks and activities.
 """
 from typing import Dict, List, AsyncGenerator
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from ..agent_chat import get_claude_agent, DEFAULT_SYSTEM_PROMPT
+from ..database import async_session_maker
+from ..repositories.card_repository import CardRepository
+from ..repositories.activity_repository import ActivityRepository
 
 
 class ChatService:
@@ -65,9 +69,122 @@ class ChatService:
             return True
         return False
 
-    def get_system_prompt(self) -> str | None:
-        """Get system prompt for chat context"""
-        # Use the default system prompt defined in agent_chat
+    def _format_relative_time(self, dt: datetime) -> str:
+        """Format datetime as relative time (e.g., 'ha 2 dias')"""
+        now = datetime.now(timezone.utc)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        diff = now - dt
+
+        if diff.days > 0:
+            return f"ha {diff.days} dia{'s' if diff.days > 1 else ''}"
+
+        hours = diff.seconds // 3600
+        if hours > 0:
+            return f"ha {hours}h"
+
+        minutes = diff.seconds // 60
+        if minutes > 0:
+            return f"ha {minutes}min"
+
+        return "agora"
+
+    def _truncate(self, text: str, max_length: int = 80) -> str:
+        """Truncate text adding ... if needed"""
+        if not text:
+            return ""
+        text = text.replace('\n', ' ').strip()
+        if len(text) <= max_length:
+            return text
+        return text[:max_length - 3] + "..."
+
+    async def _get_kanban_context(self) -> str:
+        """Fetch current kanban state and format as context"""
+        try:
+            async with async_session_maker() as session:
+                card_repo = CardRepository(session)
+                activity_repo = ActivityRepository(session)
+
+                # Fetch all cards
+                cards = await card_repo.get_all()
+
+                # Fetch recent activities
+                activities = await activity_repo.get_recent_activities(limit=5)
+
+                # Group cards by column
+                columns: Dict[str, List] = {
+                    "backlog": [], "plan": [], "implement": [],
+                    "test": [], "review": [], "done": [],
+                    "completed": [], "archived": [], "cancelado": []
+                }
+
+                for card in cards:
+                    if card.column_id in columns:
+                        columns[card.column_id].append(card)
+
+                # Build context
+                lines = ["=== KANBAN STATUS ==="]
+
+                # Active columns (excluding completed, archived, cancelado)
+                column_config = [
+                    ("backlog", "Backlog", "📋"),
+                    ("plan", "Plan", "📝"),
+                    ("implement", "Implement", "🔨"),
+                    ("test", "Test", "🧪"),
+                    ("review", "Review", "👀"),
+                    ("done", "Done", "✅"),
+                ]
+
+                for col_id, col_name, emoji in column_config:
+                    col_cards = columns[col_id]
+                    if col_cards:
+                        lines.append(f"\n{emoji} {col_name} ({len(col_cards)}):")
+                        for card in col_cards[:5]:  # Limit to 5 cards per column
+                            time_str = self._format_relative_time(card.created_at)
+                            lines.append(f"  - \"{card.title}\" ({time_str})")
+                            if card.description:
+                                desc = self._truncate(card.description, 60)
+                                lines.append(f"    -> {desc}")
+
+                # Summary
+                active_cols = ["backlog", "plan", "implement", "test", "review", "done"]
+                summary = " | ".join([f"{len(columns[c])} {c}" for c in active_cols])
+                lines.append(f"\n📊 Resumo: {summary}")
+
+                # Recent activities
+                if activities:
+                    lines.append("\n🕐 Ultimas atividades:")
+                    for act in activities[:5]:
+                        time_str = self._format_relative_time(
+                            datetime.fromisoformat(act["timestamp"])
+                        )
+                        card_title = self._truncate(act["cardTitle"], 30)
+
+                        if act["type"] == "moved":
+                            lines.append(f"  - \"{card_title}\" movido para {act['toColumn']} ({time_str})")
+                        elif act["type"] == "completed":
+                            lines.append(f"  - \"{card_title}\" concluido ({time_str})")
+                        elif act["type"] == "created":
+                            lines.append(f"  - \"{card_title}\" criado ({time_str})")
+                        else:
+                            lines.append(f"  - \"{card_title}\" {act['type']} ({time_str})")
+
+                lines.append("===================")
+
+                return "\n".join(lines)
+
+        except Exception as e:
+            print(f"[ChatService] Error getting kanban context: {e}")
+            return ""
+
+    async def get_system_prompt(self) -> str:
+        """Get system prompt with kanban context"""
+        kanban_context = await self._get_kanban_context()
+
+        if kanban_context:
+            return f"{DEFAULT_SYSTEM_PROMPT}\n\n{kanban_context}"
+
         return DEFAULT_SYSTEM_PROMPT
 
     async def send_message(
@@ -111,8 +228,8 @@ class ChatService:
                 for msg in self.sessions[session_id]
             ]
 
-            # Get system prompt
-            system_prompt = self.get_system_prompt()
+            # Get system prompt with kanban context
+            system_prompt = await self.get_system_prompt()
 
             # Stream response from Claude with selected model
             async for chunk in self.claude_agent.stream_response(
