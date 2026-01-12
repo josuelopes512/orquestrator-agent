@@ -8,8 +8,11 @@ interface UseWorkflowAutomationProps {
   executeImplement: (card: Card) => Promise<{ success: boolean; error?: string }>;
   executeTest: (card: Card) => Promise<{ success: boolean; error?: string }>;
   executeReview: (card: Card) => Promise<{ success: boolean; error?: string }>;
+  executeExpertTriage?: (card: Card) => Promise<{ success: boolean; experts: Card['experts']; error?: string }>;
   onCardMove: (cardId: string, columnId: ColumnId) => void;
   onSpecPathUpdate: (cardId: string, specPath: string) => void;
+  onExpertsUpdate?: (cardId: string, experts: Card['experts']) => void;
+  onLoadingExpertsChange?: (cardId: string | null) => void;
   initialStatuses?: Map<string, WorkflowStatus>; // Para restaurar estados
   cards: Card[]; // Para buscar card por id durante recuperação
   registerCompletionCallback: (cardId: string, callback: (execution: ExecutionStatus) => void) => void;
@@ -21,8 +24,11 @@ export function useWorkflowAutomation({
   executeImplement,
   executeTest,
   executeReview,
+  executeExpertTriage,
   onCardMove,
   onSpecPathUpdate,
+  onExpertsUpdate,
+  onLoadingExpertsChange,
   initialStatuses,
   cards,
   registerCompletionCallback,
@@ -73,7 +79,22 @@ export function useWorkflowAutomation({
       onCardMove(card.id, 'plan');
       await updateStatus('planning', 'plan');
 
-      const planResult = await executePlan(card);
+      // Execute expert triage first (if available)
+      let cardWithExperts = card;
+      if (executeExpertTriage) {
+        onLoadingExpertsChange?.(card.id);
+        console.log(`[WorkflowAutomation] Starting expert triage for card: ${card.title}`);
+        const triageResult = await executeExpertTriage(card);
+        onLoadingExpertsChange?.(null);
+
+        if (triageResult.success && triageResult.experts && Object.keys(triageResult.experts).length > 0) {
+          onExpertsUpdate?.(card.id, triageResult.experts);
+          cardWithExperts = { ...card, experts: triageResult.experts };
+          console.log(`[WorkflowAutomation] Identified experts:`, Object.keys(triageResult.experts));
+        }
+      }
+
+      const planResult = await executePlan(cardWithExperts);
       if (!planResult.success) {
         // Rollback: voltar para backlog
         await cardsApi.moveCard(card.id, 'backlog');
@@ -143,7 +164,7 @@ export function useWorkflowAutomation({
       await updateStatus('error', card.columnId, errorMsg);
       console.error('[useWorkflowAutomation] Workflow failed:', errorMsg);
     }
-  }, [executePlan, executeImplement, executeTest, executeReview, onCardMove, onSpecPathUpdate]);
+  }, [executePlan, executeImplement, executeTest, executeReview, executeExpertTriage, onCardMove, onSpecPathUpdate, onExpertsUpdate, onLoadingExpertsChange]);
 
   const getWorkflowStatus = useCallback((cardId: string) => {
     return workflowStatuses.get(cardId);

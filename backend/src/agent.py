@@ -1229,6 +1229,7 @@ async def execute_plan(
     model: str = "opus-4.5",
     images: Optional[list] = None,
     db_session: Optional[AsyncSession] = None,
+    experts: Optional[dict] = None,
 ) -> PlanResult:
     """Execute a plan using Claude Agent SDK or Gemini CLI."""
     # Detecta se é modelo Gemini
@@ -1284,6 +1285,14 @@ async def execute_plan(
     sdk_model = model_map.get(model, "opus")
 
     prompt = f"/plan {title}: {description}"
+
+    # Add expert context if available
+    if experts:
+        from .services.expert_triage_service import build_expert_context_for_plan
+        expert_context = build_expert_context_for_plan(experts, cwd)
+        if expert_context:
+            prompt += f"\n\n{expert_context}"
+            print(f"[Agent] Injected expert context from {len(experts)} experts")
 
     # Add image references if available
     if images:
@@ -2483,3 +2492,179 @@ async def execute_review(
             error=error_message,
             logs=record.logs,
         )
+
+
+async def execute_expert_triage(
+    card_id: str,
+    title: str,
+    description: str,
+    cwd: str,
+    db_session: Optional[AsyncSession] = None,
+) -> dict:
+    """
+    Execute /expert-triage command using Claude Agent SDK.
+
+    This uses AI reasoning (not keywords) to identify relevant experts
+    based on the card's title and description.
+
+    Returns:
+        dict with keys: success, experts, error (optional)
+    """
+    from .database import async_session_maker
+    from .models.project import ActiveProject
+    from sqlalchemy import select
+
+    print(f"[Agent] Starting expert triage for card: {card_id[:8]}")
+
+    # Get project path
+    async with async_session_maker() as session:
+        result = await session.execute(
+            select(ActiveProject).order_by(ActiveProject.loaded_at.desc()).limit(1)
+        )
+        active_project = result.scalar_one_or_none()
+        if active_project:
+            project_path = active_project.path
+            print(f"[Agent] Found active project: {project_path}")
+        else:
+            project_path = str(Path(__file__).parent.parent.parent)
+            print(f"[Agent] No active project, using root project: {project_path}")
+
+    # Build prompt with arguments
+    # Format: <cardId> <title> [description]
+    prompt = f"/expert-triage {card_id} {title}"
+    if description:
+        prompt += f" {description}"
+
+    # Usar repository se disponível
+    repo = None
+    execution_db = None
+
+    if db_session:
+        repo = ExecutionRepository(db_session)
+        execution_db = await repo.create_execution(
+            card_id=card_id,
+            command="/expert-triage",
+            title=f"triage:{title[:30]}"
+        )
+        await repo.add_log(
+            execution_id=execution_db.id,
+            log_type="info",
+            content=f"Starting AI expert triage for: {title}"
+        )
+
+    # Initialize execution record (memory)
+    record = ExecutionRecord(
+        cardId=card_id,
+        title=f"triage:{title[:30]}",
+        startedAt=datetime.now().isoformat(),
+        status=ExecutionStatus.RUNNING,
+        logs=[],
+    )
+    executions[card_id] = record
+
+    add_log(record, LogType.INFO, f"Starting AI expert triage for: {title}")
+    add_log(record, LogType.INFO, f"Working directory: {project_path}")
+
+    result_text = ""
+
+    try:
+        # Configure agent options - use haiku for speed
+        options = ClaudeAgentOptions(
+            cwd=Path(project_path),
+            setting_sources=["user", "project"],
+            allowed_tools=["Read", "Glob"],
+            permission_mode="acceptEdits",
+            model="haiku",
+        )
+
+        # Execute using claude-agent-sdk
+        async for message in query(prompt=prompt, options=options):
+            if isinstance(message, AssistantMessage):
+                for block in message.content:
+                    if isinstance(block, TextBlock):
+                        add_log(record, LogType.TEXT, block.text)
+                        if repo and execution_db:
+                            await repo.add_log(
+                                execution_id=execution_db.id,
+                                log_type="text",
+                                content=block.text
+                            )
+                        result_text += block.text + "\n"
+                    elif isinstance(block, ToolUseBlock):
+                        add_log(record, LogType.TOOL, f"Using tool: {block.name}")
+                        if repo and execution_db:
+                            await repo.add_log(
+                                execution_id=execution_db.id,
+                                log_type="tool",
+                                content=f"Using tool: {block.name}"
+                            )
+
+            elif isinstance(message, ResultMessage):
+                if hasattr(message, "result") and message.result:
+                    result_text = message.result
+                    add_log(record, LogType.RESULT, message.result)
+
+        # Parse JSON from result
+        experts = {}
+        try:
+            # Find JSON block in result
+            json_match = re.search(r'```json\s*([\s\S]*?)\s*```', result_text)
+            if json_match:
+                json_str = json_match.group(1)
+                parsed = json.loads(json_str)
+                experts = parsed.get("experts", {})
+                add_log(record, LogType.INFO, f"Identified {len(experts)} experts via AI")
+            else:
+                # Try to parse entire result as JSON
+                parsed = json.loads(result_text.strip())
+                experts = parsed.get("experts", {})
+                add_log(record, LogType.INFO, f"Identified {len(experts)} experts via AI")
+        except json.JSONDecodeError as e:
+            add_log(record, LogType.ERROR, f"Failed to parse JSON: {e}")
+            # Return empty experts on parse error
+            experts = {}
+
+        # Mark as success
+        record.completed_at = datetime.now().isoformat()
+        record.status = ExecutionStatus.SUCCESS
+        record.result = result_text
+        add_log(record, LogType.INFO, "Expert triage completed successfully")
+
+        if repo and execution_db:
+            await repo.update_execution_status(
+                execution_id=execution_db.id,
+                status=DBExecutionStatus.SUCCESS,
+                result=result_text
+            )
+
+        return {
+            "success": True,
+            "cardId": card_id,
+            "experts": experts,
+        }
+
+    except Exception as e:
+        error_message = str(e)
+        record.completed_at = datetime.now().isoformat()
+        record.status = ExecutionStatus.ERROR
+        record.result = error_message
+        add_log(record, LogType.ERROR, f"Expert triage error: {error_message}")
+
+        if repo and execution_db:
+            await repo.add_log(
+                execution_id=execution_db.id,
+                log_type="error",
+                content=error_message
+            )
+            await repo.update_execution_status(
+                execution_id=execution_db.id,
+                status=DBExecutionStatus.ERROR,
+                result=error_message
+            )
+
+        return {
+            "success": False,
+            "cardId": card_id,
+            "experts": {},
+            "error": error_message,
+        }

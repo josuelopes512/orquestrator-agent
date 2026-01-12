@@ -42,9 +42,16 @@ export const API_ENDPOINTS = {
     implement: `${API_CONFIG.BASE_URL}/api/execute-implement`,
     test: `${API_CONFIG.BASE_URL}/api/execute-test`,
     review: `${API_CONFIG.BASE_URL}/api/execute-review`,
+    expertTriage: `${API_CONFIG.BASE_URL}/api/execute-expert-triage`,
   },
 
   // Git worktree isolation endpoints
   branches: `${API_CONFIG.BASE_URL}/api/branches`,
   cleanupWorktrees: `${API_CONFIG.BASE_URL}/api/cleanup-orphan-worktrees`,
+
+  // Expert agents endpoints
+  experts: {
+    triage: `${API_CONFIG.BASE_URL}/api/expert-triage`,
+    sync: `${API_CONFIG.BASE_URL}/api/expert-sync`,
+  },
 } as const;

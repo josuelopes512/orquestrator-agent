@@ -15,9 +15,10 @@ interface ColumnProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   fetchLogsHistory?: (cardId: string) => Promise<{ cardId: string; history: ExecutionHistory[] } | null>;
+  loadingExpertsCardId?: string | null;
 }
 
-export function Column({ column, cards, onRemoveCard, onUpdateCard, getExecutionStatus, getWorkflowStatus, onRunWorkflow, isCollapsed, onToggleCollapse, fetchLogsHistory }: ColumnProps) {
+export function Column({ column, cards, onRemoveCard, onUpdateCard, getExecutionStatus, getWorkflowStatus, onRunWorkflow, isCollapsed, onToggleCollapse, fetchLogsHistory, loadingExpertsCardId }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -61,6 +62,7 @@ export function Column({ column, cards, onRemoveCard, onUpdateCard, getExecution
               workflowStatus={getWorkflowStatus?.(card.id)}
               onRunWorkflow={onRunWorkflow}
               fetchLogsHistory={fetchLogsHistory}
+              isLoadingExperts={loadingExpertsCardId === card.id}
             />
           ))}
         </div>

@@ -161,6 +161,8 @@ class CardResponse(BaseModel):
     cost_stats: Optional[CostStats] = Field(None, alias="costStats")
     # Completed timestamp
     completed_at: Optional[datetime] = Field(None, alias="completedAt")
+    # Experts identificados para este card
+    experts: Optional[Dict[str, Dict]] = Field(None, alias="experts")
 
     @property
     def is_finalized(self) -> bool:

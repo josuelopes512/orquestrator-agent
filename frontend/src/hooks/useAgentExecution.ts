@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Card, ExecutionStatus, ExecutionLog, CardExecutionHistory } from "../types";
+import { Card, ExecutionStatus, ExecutionLog, CardExecutionHistory, CardExperts } from "../types";
 import { API_ENDPOINTS } from "../api/config";
 
 const POLLING_INTERVAL = 1500; // Poll every 1.5 seconds
@@ -8,6 +8,27 @@ interface ExecutePlanResult {
   success: boolean;
   specPath?: string;
   result?: string;
+  error?: string;
+}
+
+interface ExpertTriageResult {
+  success: boolean;
+  cardId: string;
+  experts: CardExperts;
+  error?: string;
+}
+
+interface SyncedExpert {
+  expertId: string;
+  synced: boolean;
+  filesChanged: string[];
+  message?: string;
+}
+
+interface ExpertSyncResult {
+  success: boolean;
+  cardId: string;
+  syncedExperts: SyncedExpert[];
   error?: string;
 }
 
@@ -640,6 +661,88 @@ export function useAgentExecution(props?: UseAgentExecutionProps | Map<string, E
     completionCallbacksRef.current.delete(cardId);
   }, []);
 
+  // Execute AI-powered expert triage to identify relevant experts for a card
+  // This uses Claude to analyze the card and decide which experts are relevant
+  const executeExpertTriage = useCallback(async (card: Card): Promise<ExpertTriageResult> => {
+    console.log(`[useAgentExecution] Starting AI expert triage for: ${card.title}`);
+
+    try {
+      // Use the new AI-powered endpoint
+      const response = await fetch(API_ENDPOINTS.execution.expertTriage, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          card_id: card.id,
+          title: card.title,
+          description: card.description,
+        }),
+      });
+
+      const result = await response.json();
+      console.log(`[useAgentExecution] AI expert triage completed:`, result);
+
+      return {
+        success: result.success,
+        cardId: result.cardId,
+        experts: result.experts || {},
+        error: result.error,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[useAgentExecution] AI expert triage error:`, errorMessage);
+      return {
+        success: false,
+        cardId: card.id,
+        experts: {},
+        error: errorMessage,
+      };
+    }
+  }, []);
+
+  // Execute expert sync to update expert knowledge bases after card completion
+  const executeExpertSync = useCallback(async (card: Card): Promise<ExpertSyncResult> => {
+    console.log(`[useAgentExecution] Starting expert sync for: ${card.title}`);
+
+    if (!card.experts || Object.keys(card.experts).length === 0) {
+      console.log(`[useAgentExecution] No experts to sync for card: ${card.id}`);
+      return {
+        success: true,
+        cardId: card.id,
+        syncedExperts: [],
+      };
+    }
+
+    try {
+      const response = await fetch(API_ENDPOINTS.experts.sync, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId: card.id,
+          experts: card.experts,
+        }),
+      });
+
+      const result = await response.json();
+      console.log(`[useAgentExecution] Expert sync completed:`, result);
+
+      return {
+        success: result.success,
+        cardId: result.cardId,
+        syncedExperts: result.syncedExperts || [],
+        error: result.error,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[useAgentExecution] Expert sync error:`, errorMessage);
+      return {
+        success: false,
+        cardId: card.id,
+        syncedExperts: [],
+        error: errorMessage,
+      };
+    }
+  }, []);
+
   return {
     executions,
     executePlan,
@@ -651,5 +754,7 @@ export function useAgentExecution(props?: UseAgentExecutionProps | Map<string, E
     registerCompletionCallback,
     unregisterCompletionCallback,
     fetchLogsHistory,
+    executeExpertTriage,
+    executeExpertSync,
   };
 }
