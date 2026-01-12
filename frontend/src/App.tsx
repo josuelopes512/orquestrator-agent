@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { DragEndEvent, DragOverEvent, DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { Card as CardType, ColumnId, COLUMNS, isValidTransition, ExecutionStatus, Project, WorkflowStatus, WorkflowStage } from './types';
 import { useAgentExecution } from './hooks/useAgentExecution';
 import { useWorkflowAutomation } from './hooks/useWorkflowAutomation';
 import { useChat } from './hooks/useChat';
 import { useViewPersistence } from './hooks/useViewPersistence';
+import { useCardWebSocket } from './hooks/useCardWebSocket';
 import * as cardsApi from './api/cards';
 import { getCurrentProject } from './api/projects';
 import WorkspaceLayout, { ModuleType } from './layouts/WorkspaceLayout';
@@ -45,10 +46,13 @@ function App() {
     }
   };
 
-  const { executePlan, executeImplement, executeTest, executeReview, getExecutionStatus, registerCompletionCallback, executions, fetchLogsHistory } = useAgentExecution({
+  const { executePlan, executeImplement, executeTest, executeReview, getExecutionStatus, registerCompletionCallback, executions, fetchLogsHistory, executeExpertTriage, executeExpertSync } = useAgentExecution({
     initialExecutions,
     onExecutionComplete: handleExecutionComplete,
   });
+
+  // Estado para controlar loading de experts
+  const [loadingExpertsCardId, setLoadingExpertsCardId] = useState<string | null>(null);
   const { state: chatState, sendMessage, handleModelChange, createNewSession } = useChat();
 
   // Define moveCard and updateCardSpecPath BEFORE useWorkflowAutomation
@@ -68,6 +72,14 @@ function App() {
     );
   };
 
+  const updateCardExperts = (cardId: string, experts: CardType['experts']) => {
+    setCards(prev =>
+      prev.map(card =>
+        card.id === cardId ? { ...card, experts } : card
+      )
+    );
+  };
+
   const {
     runWorkflow,
     getWorkflowStatus,
@@ -78,13 +90,53 @@ function App() {
     executeImplement,
     executeTest,
     executeReview,
+    executeExpertTriage,
     onCardMove: moveCard,
     onSpecPathUpdate: updateCardSpecPath,
+    onExpertsUpdate: updateCardExperts,
+    onLoadingExpertsChange: setLoadingExpertsCardId,
     initialStatuses: initialWorkflowStatuses,
     cards,
     registerCompletionCallback,
     executions,
   });
+
+  // WebSocket para sincronização de cards em tempo real
+  const { isConnected: cardsWsConnected } = useCardWebSocket({
+    enabled: true,
+    onCardMoved: useCallback(async (message) => {
+      console.log(`[App] Card moved via WebSocket: ${message.cardId}`);
+
+      // Atualizar o card na lista local
+      setCards(prev => prev.map(card =>
+        card.id === message.cardId ? message.card : card
+      ));
+
+      // Se for um card com workflow em andamento, pode precisar de ações adicionais
+      const workflowStatus = getWorkflowStatus(message.cardId);
+      if (workflowStatus && workflowStatus.stage !== 'idle') {
+        console.log(`[App] Card ${message.cardId} has active workflow, may need recovery`);
+      }
+    }, [getWorkflowStatus]),
+
+    onCardUpdated: useCallback((message) => {
+      console.log(`[App] Card updated via WebSocket: ${message.cardId}`);
+
+      // Atualizar o card na lista local
+      setCards(prev => prev.map(card =>
+        card.id === message.cardId ? message.card : card
+      ));
+    }, [])
+  });
+
+  // Indicador de conexão (opcional - para debug)
+  useEffect(() => {
+    if (cardsWsConnected) {
+      console.log('[App] Cards WebSocket connected');
+    } else {
+      console.log('[App] Cards WebSocket disconnected');
+    }
+  }, [cardsWsConnected]);
 
   // Load cards, active executions, and current project from API on mount
   useEffect(() => {
@@ -475,7 +527,22 @@ function App() {
     // Triggers baseados na transição
     if (startColumn === 'backlog' && finalColumnId === 'plan') {
       console.log(`[App] Card moved from backlog to plan: ${card.title}`);
-      const result = await executePlan(card);
+
+      // 1. Execute expert triage first (blocking)
+      setLoadingExpertsCardId(card.id);
+      console.log(`[App] Starting expert triage for card: ${card.title}`);
+      const triageResult = await executeExpertTriage(card);
+      setLoadingExpertsCardId(null);
+
+      // 2. Update card with identified experts
+      if (triageResult.success && Object.keys(triageResult.experts).length > 0) {
+        updateCardExperts(card.id, triageResult.experts);
+        console.log(`[App] Identified experts:`, Object.keys(triageResult.experts));
+      }
+
+      // 3. Execute plan with expert context
+      const cardWithExperts = { ...card, experts: triageResult.experts };
+      const result = await executePlan(cardWithExperts);
       if (result.success && result.specPath) {
         updateCardSpecPath(card.id, result.specPath);
         console.log(`[App] Spec path saved: ${result.specPath}`);
@@ -514,7 +581,7 @@ function App() {
         moveCard(activeId, startColumn);
       }
     } else if (startColumn === 'review' && finalColumnId === 'done') {
-      // Trigger: review → done - Fazer merge automático
+      // Trigger: review → done - Fazer merge automático e sync de experts
       const updatedCard = cards.find(c => c.id === activeId);
       if (updatedCard?.branchName) {
         console.log(`[App] Card moved from review to done: ${updatedCard.title}`);
@@ -534,6 +601,18 @@ function App() {
         }
       } else {
         console.log(`[App] Card has no branch, skipping merge`);
+      }
+
+      // Execute expert sync in background (non-blocking)
+      if (updatedCard?.experts && Object.keys(updatedCard.experts).length > 0) {
+        console.log(`[App] Starting expert sync for card: ${updatedCard.title}`);
+        executeExpertSync(updatedCard).then(result => {
+          if (result.success) {
+            console.log(`[App] Expert sync completed:`, result.syncedExperts);
+          } else {
+            console.error(`[App] Expert sync failed:`, result.error);
+          }
+        });
       }
     }
   };
@@ -568,6 +647,7 @@ function App() {
             onProjectLoad={setCurrentProject}
             fetchLogsHistory={fetchLogsHistory}
             onCardCreated={handleCardCreated}
+            loadingExpertsCardId={loadingExpertsCardId}
           />
         );
 

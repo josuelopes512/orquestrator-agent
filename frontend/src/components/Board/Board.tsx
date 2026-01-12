@@ -16,9 +16,10 @@ interface BoardProps {
   isCanceladoCollapsed?: boolean;
   onToggleCanceladoCollapse?: () => void;
   fetchLogsHistory?: (cardId: string) => Promise<{ cardId: string; history: ExecutionHistory[] } | null>;
+  loadingExpertsCardId?: string | null;
 }
 
-export function Board({ columns, cards, onAddCard, onRemoveCard, onUpdateCard, getExecutionStatus, getWorkflowStatus, onRunWorkflow, isArchivedCollapsed, onToggleArchivedCollapse, isCanceladoCollapsed, onToggleCanceladoCollapse, fetchLogsHistory }: BoardProps) {
+export function Board({ columns, cards, onAddCard, onRemoveCard, onUpdateCard, getExecutionStatus, getWorkflowStatus, onRunWorkflow, isArchivedCollapsed, onToggleArchivedCollapse, isCanceladoCollapsed, onToggleCanceladoCollapse, fetchLogsHistory, loadingExpertsCardId }: BoardProps) {
   return (
     <div className={styles.board}>
       {columns.map(column => {
@@ -47,6 +48,7 @@ export function Board({ columns, cards, onAddCard, onRemoveCard, onUpdateCard, g
               undefined
             }
             fetchLogsHistory={fetchLogsHistory}
+            loadingExpertsCardId={loadingExpertsCardId}
           />
         );
       })}

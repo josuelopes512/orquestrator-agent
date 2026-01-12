@@ -31,6 +31,7 @@ interface KanbanPageProps {
   onProjectLoad: (project: Project | null) => void;
   onCardCreated?: (newCard: CardType) => void;
   fetchLogsHistory?: (cardId: string) => Promise<{ cardId: string; history: any[] } | null>;
+  loadingExpertsCardId?: string | null;
 }
 
 const KanbanPage = ({
@@ -56,6 +57,7 @@ const KanbanPage = ({
   onProjectLoad,
   onCardCreated,
   fetchLogsHistory,
+  loadingExpertsCardId,
 }: KanbanPageProps) => {
   return (
     <div className={styles.kanbanPage}>
@@ -101,6 +103,7 @@ const KanbanPage = ({
             isCanceladoCollapsed={isCanceladoCollapsed}
             onToggleCanceladoCollapse={onToggleCanceladoCollapse}
             fetchLogsHistory={fetchLogsHistory}
+            loadingExpertsCardId={loadingExpertsCardId}
           />
           <DragOverlay>
             {activeCard ? (
