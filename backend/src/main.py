@@ -11,7 +11,7 @@ from sqlalchemy import update, select
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .agent import execute_plan, execute_implement, execute_test_implementation, execute_review, get_execution, get_all_executions
+from .agent import execute_plan, execute_implement, execute_test_implementation, execute_review, execute_expert_triage, get_execution, get_all_executions
 from .git_workspace import GitWorkspaceManager
 from .database import create_tables
 from .repositories.execution_repository import ExecutionRepository
@@ -27,6 +27,7 @@ from .execution import (
 )
 from pydantic import BaseModel
 from .routes.cards import router as cards_router
+from .routes.cards_ws import router as cards_ws_router
 from .routes.images import router as images_router
 from .routes.projects import router as projects_router
 from .routes.chat import router as chat_router
@@ -34,6 +35,7 @@ from .routes.execution_ws import router as execution_ws_router
 from .routes.activities import router as activities_router
 from .routes.metrics import router as metrics_router
 from .routes.settings import router as settings_router
+from .routes.experts import router as experts_router
 from .database import get_db, async_session_maker
 from .repositories.card_repository import CardRepository
 from .schemas.card import CardUpdate
@@ -79,6 +81,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(cards_router)
+app.include_router(cards_ws_router)
 app.include_router(images_router)
 app.include_router(projects_router)
 app.include_router(chat_router)
@@ -86,6 +89,7 @@ app.include_router(execution_ws_router)
 app.include_router(activities_router)
 app.include_router(metrics_router)
 app.include_router(settings_router)
+app.include_router(experts_router)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -121,6 +125,8 @@ async def execute_plan_endpoint(request: ExecutePlanRequest):
             card = await repo.get_by_id(request.card_id)
             model = card.model_plan if card else "opus-4.5"
             images = card.images if card else None
+            # Use experts from request or from card
+            experts = request.experts or (card.experts if card else None)
 
         # Passar db_session para persistir logs
         async with async_session_maker() as db_session:
@@ -132,6 +138,7 @@ async def execute_plan_endpoint(request: ExecutePlanRequest):
                 model=model,
                 images=images,
                 db_session=db_session,
+                experts=experts,
             )
 
         if result.success:
@@ -373,6 +380,77 @@ async def execute_review_endpoint(request: ExecuteImplementRequest):
         return JSONResponse(
             status_code=500,
             content=error_response.model_dump(by_alias=True),
+        )
+
+
+# Schema for expert triage request
+class ExpertTriageRequest(BaseModel):
+    card_id: str
+    title: str
+    description: Optional[str] = None
+
+    class Config:
+        populate_by_name = True
+
+
+@app.post("/api/execute-expert-triage")
+async def execute_expert_triage_endpoint(request: ExpertTriageRequest):
+    """Execute AI-powered expert triage for a card."""
+    if not request.card_id or not request.title:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required fields: card_id and title are required",
+        )
+
+    print(f"[Server] Received expert triage request for card: {request.card_id}")
+    print(f"[Server] Title: {request.title}")
+
+    try:
+        cwd = str(Path.cwd().parent)
+
+        async with async_session_maker() as db_session:
+            result = await execute_expert_triage(
+                card_id=request.card_id,
+                title=request.title,
+                description=request.description or "",
+                cwd=cwd,
+                db_session=db_session,
+            )
+
+            # Save experts to card if identified
+            if result.get("success") and result.get("experts"):
+                repo = CardRepository(db_session)
+                await repo.update_experts(request.card_id, result["experts"])
+                await db_session.commit()
+
+        if result.get("success"):
+            return {
+                "success": True,
+                "cardId": request.card_id,
+                "experts": result.get("experts", {}),
+            }
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "success": False,
+                    "cardId": request.card_id,
+                    "error": result.get("error", "Unknown error"),
+                    "experts": {},
+                },
+            )
+
+    except Exception as e:
+        error_message = str(e)
+        print(f"[Server] Error: {error_message}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "cardId": request.card_id,
+                "error": error_message,
+                "experts": {},
+            },
         )
 
 

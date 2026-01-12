@@ -66,6 +66,7 @@ class ExecutePlanRequest(CamelCaseModel):
     title: str
     description: Optional[str] = None
     model: Optional[str] = "opus-4.5"
+    experts: Optional[dict] = None  # Experts identified via expert-triage
 
 
 class HealthResponse(BaseModel):
