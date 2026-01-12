@@ -74,6 +74,13 @@ class Card(Base):
         comment="Timestamp when card was moved to Done"
     )
 
+    # Campo para experts identificados
+    experts: Mapped[Dict[str, Any] | None] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="Experts identified for this card via expert-triage"
+    )
+
     # Relacionamento com execuções
     executions = relationship("Execution", back_populates="card", cascade="all, delete-orphan")
 

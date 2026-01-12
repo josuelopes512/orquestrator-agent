@@ -243,3 +243,14 @@ class CardRepository:
 
         return await self.create(fix_card_data)
 
+    async def update_experts(self, card_id: str, experts: dict) -> Optional[Card]:
+        """Update the experts field for a card."""
+        card = await self.get_by_id(card_id)
+        if not card:
+            return None
+
+        card.experts = experts
+        await self.session.flush()
+        await self.session.refresh(card)
+        return card
+
