@@ -30,8 +30,7 @@ export const AVAILABLE_MODELS: AIModel[] = [
     performance: 'balanced',
     icon: '⚡',
     accent: 'anthropic',
-    badge: 'Best Value',
-    default: true
+    badge: 'Best Value'
   },
   {
     id: 'claude-3.5-haiku',
