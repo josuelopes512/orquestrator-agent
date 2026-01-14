@@ -14,7 +14,7 @@ export const AVAILABLE_MODELS: AIModel[] = [
     displayName: 'Opus 4.5',
     provider: 'anthropic',
     maxTokens: 200000,
-    description: 'Comprehensive analysis and complex problem-solving',
+    description: 'Most capable for complex tasks',
     performance: 'powerful',
     icon: '🧠',
     accent: 'anthropic',
@@ -26,7 +26,7 @@ export const AVAILABLE_MODELS: AIModel[] = [
     displayName: 'Sonnet 4.5',
     provider: 'anthropic',
     maxTokens: 200000,
-    description: 'Balanced speed and capability',
+    description: 'Balanced performance',
     performance: 'balanced',
     icon: '⚡',
     accent: 'anthropic',
@@ -38,12 +38,12 @@ export const AVAILABLE_MODELS: AIModel[] = [
     displayName: 'Haiku 4.5',
     provider: 'anthropic',
     maxTokens: 200000,
-    description: 'Quick responses and simple tasks',
+    description: 'Fast and efficient',
     performance: 'fastest',
     icon: '🚀',
     accent: 'anthropic'
   },
-  // Gemini 3 Models
+  // Google Gemini 3 Models
   {
     id: 'gemini-3-pro',
     name: 'Gemini 3 Pro',
@@ -62,7 +62,7 @@ export const AVAILABLE_MODELS: AIModel[] = [
     displayName: 'Gemini 3 Flash',
     provider: 'google',
     maxTokens: 1000000,
-    description: 'Fast and cost-effective multimodal AI',
+    description: 'Lightning fast',
     performance: 'fastest',
     icon: '⚡',
     accent: 'google'
