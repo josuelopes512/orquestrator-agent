@@ -17,6 +17,7 @@ from ..repositories.card_repository import CardRepository
 from .memory_service import MemoryService
 from .usage_checker_service import get_usage_checker_service, UsageInfo
 from .orchestrator_logger import get_orchestrator_logger
+from .live_broadcast_service import get_live_broadcast_service
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,11 @@ class OrchestratorService:
         cycle_start = datetime.utcnow()
         await self.logger.log_info(f"Starting cycle at {cycle_start.isoformat()}")
 
+        # Notify live spectators that AI is working
+        live_broadcast = get_live_broadcast_service()
+        await live_broadcast.update_status(is_working=True, current_stage="thinking")
+        await live_broadcast.broadcast_log("Orchestrator starting new cycle...", "info")
+
         # Get fresh session for this cycle (uses current project's database)
         session_factory = self._get_session_factory()
 
@@ -183,10 +189,12 @@ class OrchestratorService:
 
             except Exception as e:
                 await session.rollback()
+                await live_broadcast.broadcast_log(f"Cycle error: {str(e)}", "error")
                 raise
 
         cycle_duration = (datetime.utcnow() - cycle_start).total_seconds()
         await self.logger.log_info(f"Cycle completed in {cycle_duration:.2f}s")
+        await live_broadcast.broadcast_log(f"Cycle completed in {cycle_duration:.2f}s", "success")
 
     # ==================== STEP IMPLEMENTATIONS ====================
 
@@ -904,7 +912,7 @@ class OrchestratorService:
         if error:
             return None, error
 
-        # Broadcast via WebSocket
+        # Broadcast via WebSocket (admin)
         try:
             from .card_ws import card_ws_manager
             from ..schemas.card import CardResponse
@@ -920,6 +928,32 @@ class OrchestratorService:
         except Exception as e:
             # Don't fail the move if broadcast fails
             logger.warning(f"Failed to broadcast card move: {e}")
+
+        # Broadcast to live spectators
+        try:
+            live_broadcast = get_live_broadcast_service()
+            await live_broadcast.broadcast_card_moved(
+                card={
+                    "id": card.id,
+                    "title": card.title,
+                    "description": card.description,
+                    "created_at": card.created_at
+                },
+                from_column=from_column,
+                to_column=to_column
+            )
+            # Update status with current card
+            stage_map = {"plan": "planning", "implement": "implementing", "test": "testing", "review": "reviewing"}
+            stage = stage_map.get(to_column)
+            await live_broadcast.update_status(
+                is_working=True,
+                current_stage=stage,
+                current_card={"id": card.id, "title": card.title},
+                progress=None
+            )
+            await live_broadcast.broadcast_log(f"Card '{card.title}' moved to {to_column}", "info")
+        except Exception as e:
+            logger.warning(f"Failed to broadcast to live: {e}")
 
         return card, None
 
