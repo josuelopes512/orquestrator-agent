@@ -122,10 +122,12 @@ class GoalRepository:
         if not goal:
             return None
 
-        cards = goal.cards or []
-        if card_id not in cards:
-            cards.append(card_id)
-            goal.cards = cards
+        # Create a NEW list to ensure SQLAlchemy detects the change
+        # (in-place modifications of JSON fields are not tracked)
+        current_cards = list(goal.cards) if goal.cards else []
+        if card_id not in current_cards:
+            current_cards.append(card_id)
+            goal.cards = current_cards  # Assigning new list triggers change detection
 
         await self.session.flush()
         await self.session.refresh(goal)

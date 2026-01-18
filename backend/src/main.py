@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
 
 async def _run_orchestrator():
     """Run the orchestrator loop as a background task."""
-    from .services.orchestrator_service import OrchestratorService
+    from .services.orchestrator_service import get_orchestrator_service
     from .services.orchestrator_logger import get_orchestrator_logger
 
     settings = get_settings()
@@ -102,13 +102,12 @@ async def _run_orchestrator():
 
     await orch_logger.log_info("Orchestrator background task started")
 
+    # Get the singleton orchestrator service (manages its own sessions)
+    orchestrator = get_orchestrator_service()
+
     while True:
         try:
-            # Create new session for each cycle
-            async with async_session_maker() as session:
-                orchestrator = OrchestratorService(session)
-                await orchestrator._execute_cycle()
-                await session.commit()
+            await orchestrator._execute_cycle()
 
         except asyncio.CancelledError:
             await orch_logger.log_info("Orchestrator cancelled")

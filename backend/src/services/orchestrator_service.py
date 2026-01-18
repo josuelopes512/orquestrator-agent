@@ -26,6 +26,7 @@ class OrchestratorDecision(str, Enum):
     VERIFY_LIMIT = "verify_limit"
     DECOMPOSE = "decompose"
     EXECUTE_CARD = "execute_card"
+    EXECUTE_CARDS_PARALLEL = "execute_cards_parallel"  # Execute multiple cards in parallel
     CREATE_FIX = "create_fix"
     WAIT = "wait"
     COMPLETE_GOAL = "complete_goal"
@@ -36,9 +37,14 @@ class ThinkResult:
     """Result of the THINK step."""
     decision: OrchestratorDecision
     goal_id: Optional[str] = None
-    card_id: Optional[str] = None
+    card_ids: Optional[List[str]] = None  # List of cards for parallel execution
     reason: str = ""
     context: Optional[Dict[str, Any]] = None
+
+    @property
+    def card_id(self) -> Optional[str]:
+        """Backward compatibility: return first card_id."""
+        return self.card_ids[0] if self.card_ids else None
 
 
 @dataclass
@@ -64,20 +70,29 @@ class OrchestratorService:
     6. LEARN - If significant learning, save to Qdrant
     """
 
-    def __init__(self, session: AsyncSession):
-        self.session = session
+    def __init__(self):
         self.settings = get_settings()
-        self.goal_repo = GoalRepository(session)
-        self.action_repo = ActionRepository(session)
-        self.log_repo = LogRepository(session, self.settings.short_term_memory_retention_hours)
-        self.card_repo = CardRepository(session)
-        self.memory = MemoryService(session, self.settings.short_term_memory_retention_hours)
         self.usage_checker = get_usage_checker_service(self.settings.orchestrator_usage_limit_percent)
         self.logger = get_orchestrator_logger(self.settings.orchestrator_log_file)
 
         self._running = False
         self._task: Optional[asyncio.Task] = None
         self._last_usage_check: Optional[UsageInfo] = None
+
+    def _get_session_factory(self):
+        """Get the current session factory from db_manager or fallback to legacy."""
+        from ..database import get_session
+        return get_session()
+
+    def _create_repos(self, session: AsyncSession):
+        """Create repository instances with a fresh session."""
+        return {
+            "goal_repo": GoalRepository(session),
+            "action_repo": ActionRepository(session),
+            "log_repo": LogRepository(session, self.settings.short_term_memory_retention_hours),
+            "card_repo": CardRepository(session),
+            "memory": MemoryService(session, self.settings.short_term_memory_retention_hours),
+        }
 
     # ==================== LOOP CONTROL ====================
 
@@ -127,45 +142,60 @@ class OrchestratorService:
         cycle_start = datetime.utcnow()
         await self.logger.log_info(f"Starting cycle at {cycle_start.isoformat()}")
 
-        # Step 1: READ - Get recent context
-        await self.logger.log_read("Reading short-term memory...")
-        context = await self._step_read()
+        # Get fresh session for this cycle (uses current project's database)
+        session_factory = self._get_session_factory()
 
-        # Step 2: QUERY - Get relevant learnings
-        await self.logger.log_query("Querying long-term memory...")
-        learnings = await self._step_query(context)
+        async with session_factory() as session:
+            try:
+                # Create repos with fresh session
+                repos = self._create_repos(session)
 
-        # Step 3: THINK - Decide action
-        await self.logger.log_think("Deciding next action...")
-        think_result = await self._step_think(context, learnings)
-        await self.logger.log_think(
-            f"Decision: {think_result.decision.value} - {think_result.reason}",
-            goal_id=think_result.goal_id
-        )
+                # Step 1: READ - Get recent context
+                await self.logger.log_read("Reading short-term memory...")
+                context = await self._step_read(repos)
 
-        # Step 4: ACT - Execute decision
-        await self.logger.log_act(f"Executing {think_result.decision.value}...")
-        act_result = await self._step_act(think_result)
+                # Step 2: QUERY - Get relevant learnings
+                await self.logger.log_query("Querying long-term memory...")
+                learnings = await self._step_query(context, repos)
 
-        # Step 5: RECORD - Save to short-term memory
-        await self.logger.log_record("Recording result...")
-        await self._step_record(think_result, act_result)
+                # Step 3: THINK - Decide action
+                await self.logger.log_think("Deciding next action...")
+                think_result = await self._step_think(context, learnings, repos)
+                await self.logger.log_think(
+                    f"Decision: {think_result.decision.value} - {think_result.reason}",
+                    goal_id=think_result.goal_id
+                )
 
-        # Step 6: LEARN - Store learning if applicable
-        if act_result.should_learn and act_result.learning:
-            await self.logger.log_learn(f"Storing learning: {act_result.learning[:50]}...")
-            await self._step_learn(think_result, act_result)
+                # Step 4: ACT - Execute decision
+                await self.logger.log_act(f"Executing {think_result.decision.value}...")
+                act_result = await self._step_act(think_result, repos)
+
+                # Step 5: RECORD - Save to short-term memory
+                await self.logger.log_record("Recording result...")
+                await self._step_record(think_result, act_result, repos)
+
+                # Step 6: LEARN - Store learning if applicable
+                if act_result.should_learn and act_result.learning:
+                    await self.logger.log_learn(f"Storing learning: {act_result.learning[:50]}...")
+                    await self._step_learn(think_result, act_result, repos)
+
+                await session.commit()
+
+            except Exception as e:
+                await session.rollback()
+                raise
 
         cycle_duration = (datetime.utcnow() - cycle_start).total_seconds()
         await self.logger.log_info(f"Cycle completed in {cycle_duration:.2f}s")
 
     # ==================== STEP IMPLEMENTATIONS ====================
 
-    async def _step_read(self) -> Dict[str, Any]:
+    async def _step_read(self, repos: Dict[str, Any]) -> Dict[str, Any]:
         """READ step: Get recent context from short-term memory."""
-        context = await self.memory.get_recent_context()
+        memory = repos["memory"]
+        context = await memory.get_recent_context()
 
-        await self.memory.record_step(
+        await memory.record_step(
             OrchestratorLogType.READ,
             f"Read context: active_goal={context.get('active_goal') is not None}, "
             f"pending={context.get('pending_goals_count', 0)}",
@@ -174,17 +204,18 @@ class OrchestratorService:
 
         return context
 
-    async def _step_query(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _step_query(self, context: Dict[str, Any], repos: Dict[str, Any]) -> List[Dict[str, Any]]:
         """QUERY step: Get relevant learnings from long-term memory."""
+        memory = repos["memory"]
         learnings = []
 
         # Only query if we have an active goal
         active_goal = context.get("active_goal")
         if active_goal:
             goal_desc = active_goal.get("description", "")
-            learnings = self.memory.query_relevant_learnings(goal_desc, limit=3)
+            learnings = memory.query_relevant_learnings(goal_desc, limit=3)
 
-            await self.memory.record_step(
+            await memory.record_step(
                 OrchestratorLogType.QUERY,
                 f"Found {len(learnings)} relevant learnings for goal",
                 goal_id=active_goal.get("id")
@@ -195,7 +226,8 @@ class OrchestratorService:
     async def _step_think(
         self,
         context: Dict[str, Any],
-        learnings: List[Dict[str, Any]]
+        learnings: List[Dict[str, Any]],
+        repos: Dict[str, Any]
     ) -> ThinkResult:
         """
         THINK step: Decide what action to take.
@@ -208,6 +240,9 @@ class OrchestratorService:
         5. COMPLETE_GOAL - If all cards are done
         6. WAIT - Nothing to do
         """
+        goal_repo = repos["goal_repo"]
+        card_repo = repos["card_repo"]
+
         # Priority 1: Check usage limits
         usage = await self.usage_checker.check_usage()
         self._last_usage_check = usage
@@ -219,7 +254,7 @@ class OrchestratorService:
             )
 
         # Get active goal
-        active_goal = await self.goal_repo.get_active_goal()
+        active_goal = await goal_repo.get_active_goal()
 
         if active_goal:
             # Check if goal has cards
@@ -234,7 +269,7 @@ class OrchestratorService:
                 )
 
             # Check status of cards
-            cards_status = await self._get_cards_status(card_ids)
+            cards_status = await self._get_cards_status(card_ids, card_repo)
 
             # Check for failed tests that need fix
             failed_cards = [c for c in cards_status if c.get("needs_fix")]
@@ -247,15 +282,27 @@ class OrchestratorService:
                     context={"error": failed_cards[0].get("error")}
                 )
 
-            # Check for cards ready to execute (in backlog or workflow columns)
+            # Check for cards ready to execute (in backlog or workflow columns with satisfied deps)
             ready_cards = [c for c in cards_status if c.get("ready_to_execute")]
             if ready_cards:
-                return ThinkResult(
-                    decision=OrchestratorDecision.EXECUTE_CARD,
-                    goal_id=active_goal.id,
-                    card_id=ready_cards[0].get("id"),
-                    reason=f"Card {ready_cards[0].get('id')[:8]} ready to execute"
-                )
+                ready_card_ids = [c.get("id") for c in ready_cards]
+
+                if len(ready_card_ids) == 1:
+                    # Single card ready - use standard execution
+                    return ThinkResult(
+                        decision=OrchestratorDecision.EXECUTE_CARD,
+                        goal_id=active_goal.id,
+                        card_ids=ready_card_ids,
+                        reason=f"Card {ready_card_ids[0][:8]} ready to execute"
+                    )
+                else:
+                    # Multiple cards ready - execute in parallel
+                    return ThinkResult(
+                        decision=OrchestratorDecision.EXECUTE_CARDS_PARALLEL,
+                        goal_id=active_goal.id,
+                        card_ids=ready_card_ids,
+                        reason=f"{len(ready_card_ids)} cards ready for parallel execution"
+                    )
 
             # Check if all cards are done
             done_cards = [c for c in cards_status if c.get("column") in ["done", "completed"]]
@@ -274,11 +321,11 @@ class OrchestratorService:
             )
 
         # No active goal, check for pending goals
-        pending_goals = await self.goal_repo.get_pending_goals()
+        pending_goals = await goal_repo.get_pending_goals()
         if pending_goals:
             # Activate first pending goal
             first_goal = pending_goals[0]
-            await self.goal_repo.update_status(first_goal.id, GoalStatus.ACTIVE)
+            await goal_repo.update_status(first_goal.id, GoalStatus.ACTIVE)
             return ThinkResult(
                 decision=OrchestratorDecision.DECOMPOSE,
                 goal_id=first_goal.id,
@@ -291,7 +338,7 @@ class OrchestratorService:
             reason="No active or pending goals"
         )
 
-    async def _step_act(self, think_result: ThinkResult) -> ActResult:
+    async def _step_act(self, think_result: ThinkResult, repos: Dict[str, Any]) -> ActResult:
         """ACT step: Execute the decided action."""
         try:
             match think_result.decision:
@@ -299,19 +346,23 @@ class OrchestratorService:
                     return await self._act_verify_limit()
 
                 case OrchestratorDecision.DECOMPOSE:
-                    return await self._act_decompose(think_result.goal_id)
+                    return await self._act_decompose(think_result.goal_id, repos)
 
                 case OrchestratorDecision.EXECUTE_CARD:
-                    return await self._act_execute_card(think_result.card_id)
+                    return await self._act_execute_card(think_result.card_id, repos)
+
+                case OrchestratorDecision.EXECUTE_CARDS_PARALLEL:
+                    return await self._act_execute_cards_parallel(think_result.card_ids, repos)
 
                 case OrchestratorDecision.CREATE_FIX:
                     return await self._act_create_fix(
                         think_result.card_id,
-                        think_result.context
+                        think_result.context,
+                        repos
                     )
 
                 case OrchestratorDecision.COMPLETE_GOAL:
-                    return await self._act_complete_goal(think_result.goal_id)
+                    return await self._act_complete_goal(think_result.goal_id, repos)
 
                 case OrchestratorDecision.WAIT:
                     return ActResult(success=True, should_learn=False)
@@ -323,9 +374,12 @@ class OrchestratorService:
                 error=str(e)
             )
 
-    async def _step_record(self, think_result: ThinkResult, act_result: ActResult) -> None:
+    async def _step_record(self, think_result: ThinkResult, act_result: ActResult, repos: Dict[str, Any]) -> None:
         """RECORD step: Save result to short-term memory."""
-        await self.memory.record_step(
+        memory = repos["memory"]
+        action_repo = repos["action_repo"]
+
+        await memory.record_step(
             OrchestratorLogType.ACT,
             f"Action {think_result.decision.value}: success={act_result.success}",
             context={
@@ -338,24 +392,27 @@ class OrchestratorService:
 
         # Record action in database
         if think_result.goal_id:
-            await self.action_repo.create(
+            await action_repo.create(
                 goal_id=think_result.goal_id,
                 action_type=ActionType(think_result.decision.value),
                 input_context=think_result.context,
                 card_id=think_result.card_id,
             )
 
-    async def _step_learn(self, think_result: ThinkResult, act_result: ActResult) -> None:
+    async def _step_learn(self, think_result: ThinkResult, act_result: ActResult, repos: Dict[str, Any]) -> None:
         """LEARN step: Store learning in long-term memory."""
         if not think_result.goal_id or not act_result.learning:
             return
 
-        goal = await self.goal_repo.get_by_id(think_result.goal_id)
+        goal_repo = repos["goal_repo"]
+        memory = repos["memory"]
+
+        goal = await goal_repo.get_by_id(think_result.goal_id)
         if not goal:
             return
 
         # Store in Qdrant
-        learning_id = self.memory.store_learning(
+        learning_id = memory.store_learning(
             goal_description=goal.description,
             learning=act_result.learning,
             cards_created=goal.cards or [],
@@ -367,13 +424,13 @@ class OrchestratorService:
 
         # Update goal with learning
         if learning_id:
-            await self.goal_repo.set_learning(
+            await goal_repo.set_learning(
                 goal_id=goal.id,
                 learning=act_result.learning,
                 learning_id=learning_id
             )
 
-        await self.memory.record_step(
+        await memory.record_step(
             OrchestratorLogType.LEARN,
             f"Stored learning: {act_result.learning[:50]}...",
             goal_id=think_result.goal_id
@@ -389,9 +446,12 @@ class OrchestratorService:
             data={"usage": usage.__dict__}
         )
 
-    async def _act_decompose(self, goal_id: str) -> ActResult:
+    async def _act_decompose(self, goal_id: str, repos: Dict[str, Any]) -> ActResult:
         """Decompose a goal into multiple cards using Claude Opus 4.5."""
-        goal = await self.goal_repo.get_by_id(goal_id)
+        goal_repo = repos["goal_repo"]
+        card_repo = repos["card_repo"]
+
+        goal = await goal_repo.get_by_id(goal_id)
         if not goal:
             return ActResult(success=False, error="Goal not found")
 
@@ -428,25 +488,62 @@ class OrchestratorService:
                 error=decomposition.error or "Failed to decompose goal"
             )
 
-        # Create cards from decomposition
+        # First pass: Create all cards and build order-to-ID mapping
         created_cards = []
+        order_to_id: Dict[int, str] = {}
+
         for decomposed_card in decomposition.cards:
             card_data = CardCreate(
                 title=decomposed_card.title,
                 description=decomposed_card.description,
+                dependencies=[],  # Will be set in second pass
             )
 
-            card = await self.card_repo.create(card_data)
+            card = await card_repo.create(card_data)
             created_cards.append(card.id)
+            order_to_id[decomposed_card.order] = card.id
 
             # Add card to goal
-            await self.goal_repo.add_card(goal_id, card.id)
+            await goal_repo.add_card(goal_id, card.id)
+
+            # Broadcast card creation via WebSocket
+            try:
+                from .card_ws import card_ws_manager
+                from ..schemas.card import CardResponse
+
+                card_response = CardResponse.model_validate(card)
+                card_dict = card_response.model_dump(by_alias=True, mode='json')
+                await card_ws_manager.broadcast_card_created(
+                    card_id=card.id,
+                    card_data=card_dict
+                )
+            except Exception as e:
+                logger.warning(f"Failed to broadcast card creation: {e}")
 
             await self.logger.log_act(
                 f"Created card {len(created_cards)}/{len(decomposition.cards)}: {card.title[:40]}...",
                 goal_id=goal_id,
                 data={"card_id": card.id, "order": decomposed_card.order}
             )
+
+        # Second pass: Update cards with resolved dependency IDs
+        for decomposed_card in decomposition.cards:
+            if decomposed_card.dependencies:
+                card_id = order_to_id.get(decomposed_card.order)
+                if card_id:
+                    # Map order indices to actual card IDs
+                    resolved_deps = [
+                        order_to_id[dep_order]
+                        for dep_order in decomposed_card.dependencies
+                        if dep_order in order_to_id
+                    ]
+                    if resolved_deps:
+                        await card_repo.update_dependencies(card_id, resolved_deps)
+                        await self.logger.log_act(
+                            f"Set dependencies for card {card_id[:8]}: {len(resolved_deps)} deps",
+                            goal_id=goal_id,
+                            data={"card_id": card_id, "dependencies": resolved_deps}
+                        )
 
         await self.logger.log_act(
             f"Decomposition complete: {len(created_cards)} cards created",
@@ -466,9 +563,11 @@ class OrchestratorService:
             }
         )
 
-    async def _act_execute_card(self, card_id: str) -> ActResult:
-        """Execute a card through the workflow."""
-        card = await self.card_repo.get_by_id(card_id)
+    async def _act_execute_card(self, card_id: str, repos: Dict[str, Any]) -> ActResult:
+        """Execute a card through the complete workflow (plan → implement → test → review → done)."""
+        card_repo = repos["card_repo"]
+
+        card = await card_repo.get_by_id(card_id)
         if not card:
             return ActResult(success=False, error="Card not found")
 
@@ -476,16 +575,47 @@ class OrchestratorService:
         from ..agent import execute_plan, execute_implement, execute_test_implementation, execute_review
         from pathlib import Path
 
-        # Get project path
-        cwd = str(Path.cwd())
+        # Get project path from project manager
+        from ..routes.projects import get_project_manager
+        try:
+            cwd = get_project_manager().get_working_directory()
+        except Exception:
+            cwd = str(Path.cwd())
+
+        # Define workflow stages in order
+        workflow_stages = ["backlog", "plan", "implement", "test", "review", "done"]
+        current_column = card.column_id
+
+        # Find starting point in workflow
+        try:
+            start_index = workflow_stages.index(current_column)
+        except ValueError:
+            return ActResult(
+                success=True,
+                data={"message": f"Card in {current_column}, no action needed"}
+            )
+
+        # If already done, nothing to do
+        if current_column == "done":
+            return ActResult(
+                success=True,
+                data={"message": "Card already completed"}
+            )
+
+        await self.logger.log_act(
+            f"Starting full workflow for card {card_id[:8]} from {current_column}",
+            goal_id=None,
+            data={"card_id": card_id, "starting_column": current_column}
+        )
 
         try:
-            # Determine what stage to execute based on card column
-            column = card.column_id
+            # Execute each stage sequentially until done
 
-            if column == "backlog":
-                # Move to plan and execute plan
-                await self.card_repo.move(card_id, "plan")
+            # Stage 1: PLAN (if not already past it)
+            if current_column in ["backlog", "plan"]:
+                await self.logger.log_act(f"[1/4] Executing PLAN stage...")
+                await self._move_card_with_broadcast(card_id, "plan", card_repo)
+
                 result = await execute_plan(
                     card_id=card_id,
                     title=card.title,
@@ -494,76 +624,189 @@ class OrchestratorService:
                     model=card.model_plan,
                 )
 
-                if result.success:
-                    await self.card_repo.move(card_id, "implement")
+                if not result.success:
+                    await self.logger.log_error(f"PLAN failed: {result.error}")
+                    return ActResult(success=False, error=f"Plan failed: {result.error}")
 
-            elif column == "implement":
-                # Execute implement
+                await self.logger.log_act(f"[1/4] PLAN completed successfully")
+
+                # Save spec_path to card (execute_plan returns it but doesn't persist)
+                if result.spec_path:
+                    await card_repo.update_spec_path(card_id, result.spec_path)
+                    await self.logger.log_act(f"Saved spec_path: {result.spec_path}")
+
+                # Refresh card to get updated spec_path
+                card = await card_repo.get_by_id(card_id)
+
+            # Stage 2: IMPLEMENT
+            if current_column in ["backlog", "plan", "implement"]:
+                # Validate spec_path exists before proceeding
+                if not card.spec_path:
+                    await self.logger.log_error(f"Cannot execute IMPLEMENT: card has no spec_path")
+                    return ActResult(success=False, error="Card has no spec_path. Run /plan first.")
+
+                await self.logger.log_act(f"[2/4] Executing IMPLEMENT stage...")
+                await self._move_card_with_broadcast(card_id, "implement", card_repo)
+
                 result = await execute_implement(
                     card_id=card_id,
-                    spec_path=card.spec_path or "",
+                    spec_path=card.spec_path,
                     cwd=cwd,
                     model=card.model_implement,
                 )
 
-                if result.success:
-                    await self.card_repo.move(card_id, "test")
+                if not result.success:
+                    await self.logger.log_error(f"IMPLEMENT failed: {result.error}")
+                    return ActResult(success=False, error=f"Implement failed: {result.error}")
 
-            elif column == "test":
-                # Execute test
+                await self.logger.log_act(f"[2/4] IMPLEMENT completed successfully")
+
+            # Stage 3: TEST
+            if current_column in ["backlog", "plan", "implement", "test"]:
+                # Validate spec_path exists before proceeding
+                if not card.spec_path:
+                    await self.logger.log_error(f"Cannot execute TEST: card has no spec_path")
+                    return ActResult(success=False, error="Card has no spec_path. Run /plan first.")
+
+                await self.logger.log_act(f"[3/4] Executing TEST stage...")
+                await self._move_card_with_broadcast(card_id, "test", card_repo)
+
                 result = await execute_test_implementation(
                     card_id=card_id,
-                    spec_path=card.spec_path or "",
+                    spec_path=card.spec_path,
                     cwd=cwd,
                     model=card.model_test,
                 )
 
-                if result.success:
-                    await self.card_repo.move(card_id, "review")
-                else:
-                    # Test failed - might need fix card
+                if not result.success:
+                    await self.logger.log_error(f"TEST failed: {result.error}")
                     return ActResult(
                         success=False,
-                        error=result.error,
+                        error=f"Test failed: {result.error}",
                         data={"needs_fix": True}
                     )
 
-            elif column == "review":
-                # Execute review
+                await self.logger.log_act(f"[3/4] TEST completed successfully")
+
+            # Stage 4: REVIEW
+            if current_column in ["backlog", "plan", "implement", "test", "review"]:
+                # Validate spec_path exists before proceeding
+                if not card.spec_path:
+                    await self.logger.log_error(f"Cannot execute REVIEW: card has no spec_path")
+                    return ActResult(success=False, error="Card has no spec_path. Run /plan first.")
+
+                await self.logger.log_act(f"[4/4] Executing REVIEW stage...")
+                await self._move_card_with_broadcast(card_id, "review", card_repo)
+
                 result = await execute_review(
                     card_id=card_id,
-                    spec_path=card.spec_path or "",
+                    spec_path=card.spec_path,
                     cwd=cwd,
                     model=card.model_review,
                 )
 
-                if result.success:
-                    await self.card_repo.move(card_id, "done")
+                if not result.success:
+                    await self.logger.log_error(f"REVIEW failed: {result.error}")
+                    return ActResult(success=False, error=f"Review failed: {result.error}")
 
-            else:
-                return ActResult(
-                    success=True,
-                    data={"message": f"Card in {column}, no action needed"}
-                )
+                await self.logger.log_act(f"[4/4] REVIEW completed successfully")
+
+            # Move to done
+            await self._move_card_with_broadcast(card_id, "done", card_repo)
+
+            await self.logger.log_act(
+                f"Full workflow completed for card {card_id[:8]}",
+                goal_id=None,
+                data={"card_id": card_id, "final_column": "done"}
+            )
 
             return ActResult(
-                success=result.success,
-                error=result.error if not result.success else None,
-                data={"column": card.column_id}
+                success=True,
+                should_learn=True,
+                learning=f"Successfully completed full workflow for card: {card.title}",
+                data={"column": "done", "workflow_completed": True}
             )
 
         except Exception as e:
             logger.exception(f"Error executing card {card_id}: {e}")
             return ActResult(success=False, error=str(e))
 
-    async def _act_create_fix(self, card_id: str, context: Optional[dict]) -> ActResult:
+    async def _act_execute_cards_parallel(
+        self,
+        card_ids: List[str],
+        repos: Dict[str, Any]
+    ) -> ActResult:
+        """Execute multiple cards in parallel."""
+        await self.logger.log_act(
+            f"Starting parallel execution of {len(card_ids)} cards",
+            data={"card_ids": [cid[:8] for cid in card_ids]}
+        )
+
+        # Create tasks for all cards
+        tasks = [
+            self._act_execute_card(card_id, repos)
+            for card_id in card_ids
+        ]
+
+        # Execute all tasks in parallel using asyncio.gather
+        # return_exceptions=True prevents one failure from canceling others
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Process results
+        successes = []
+        failures = []
+
+        for card_id, result in zip(card_ids, results):
+            if isinstance(result, Exception):
+                failures.append({
+                    "card_id": card_id,
+                    "error": str(result)
+                })
+                await self.logger.log_error(
+                    f"Card {card_id[:8]} failed with exception: {result}"
+                )
+            elif isinstance(result, ActResult):
+                if result.success:
+                    successes.append(card_id)
+                else:
+                    failures.append({
+                        "card_id": card_id,
+                        "error": result.error
+                    })
+                    await self.logger.log_error(
+                        f"Card {card_id[:8]} failed: {result.error}"
+                    )
+
+        await self.logger.log_act(
+            f"Parallel execution completed: {len(successes)} succeeded, {len(failures)} failed",
+            data={"successes": [s[:8] for s in successes], "failures": failures}
+        )
+
+        # Determine overall success (partial success is still success for the orchestrator)
+        all_success = len(failures) == 0
+
+        return ActResult(
+            success=all_success,
+            should_learn=len(successes) > 0,
+            learning=f"Parallel execution: {len(successes)}/{len(card_ids)} cards completed" if successes else None,
+            error=f"{len(failures)} cards failed" if failures else None,
+            data={
+                "successes": successes,
+                "failures": failures,
+                "total": len(card_ids)
+            }
+        )
+
+    async def _act_create_fix(self, card_id: str, context: Optional[dict], repos: Dict[str, Any]) -> ActResult:
         """Create a fix card for a failed card."""
+        card_repo = repos["card_repo"]
+
         error_info = {
             "description": f"Fix for test failure",
             "context": context.get("error") if context else "",
         }
 
-        fix_card = await self.card_repo.create_fix_card(card_id, error_info)
+        fix_card = await card_repo.create_fix_card(card_id, error_info)
 
         if fix_card:
             return ActResult(
@@ -576,14 +819,16 @@ class OrchestratorService:
             error="Failed to create fix card"
         )
 
-    async def _act_complete_goal(self, goal_id: str) -> ActResult:
+    async def _act_complete_goal(self, goal_id: str, repos: Dict[str, Any]) -> ActResult:
         """Complete a goal and extract learning."""
-        goal = await self.goal_repo.get_by_id(goal_id)
+        goal_repo = repos["goal_repo"]
+
+        goal = await goal_repo.get_by_id(goal_id)
         if not goal:
             return ActResult(success=False, error="Goal not found")
 
         # Update goal status
-        await self.goal_repo.update_status(goal_id, GoalStatus.COMPLETED)
+        await goal_repo.update_status(goal_id, GoalStatus.COMPLETED)
 
         # Extract learning
         # TODO: Use AI to generate learning from goal execution
@@ -598,25 +843,85 @@ class OrchestratorService:
 
     # ==================== HELPERS ====================
 
-    async def _get_cards_status(self, card_ids: List[str]) -> List[Dict[str, Any]]:
-        """Get status of multiple cards."""
-        statuses = []
-
+    async def _get_cards_status(self, card_ids: List[str], card_repo: CardRepository) -> List[Dict[str, Any]]:
+        """Get status of multiple cards including dependency satisfaction."""
+        # First pass: get all cards
+        cards: Dict[str, Card] = {}
         for card_id in card_ids:
-            card = await self.card_repo.get_by_id(card_id)
+            card = await card_repo.get_by_id(card_id)
+            if card:
+                cards[card_id] = card
+
+        # Second pass: build status with dependency checking
+        statuses = []
+        for card_id in card_ids:
+            card = cards.get(card_id)
             if not card:
                 continue
+
+            # Check if dependencies are satisfied (all deps must be in 'done' column)
+            deps = card.dependencies or []
+            deps_satisfied = all(
+                cards.get(dep_id) and cards.get(dep_id).column_id == "done"
+                for dep_id in deps
+            )
+
+            # Card is ready to execute if:
+            # 1. It's in an executable column
+            # 2. All its dependencies are satisfied (in 'done')
+            is_executable_column = card.column_id in ["backlog", "plan", "implement", "test", "review"]
+            ready_to_execute = is_executable_column and deps_satisfied
 
             status = {
                 "id": card.id,
                 "title": card.title,
                 "column": card.column_id,
-                "ready_to_execute": card.column_id in ["backlog", "plan", "implement", "test", "review"],
+                "dependencies": deps,
+                "dependencies_satisfied": deps_satisfied,
+                "ready_to_execute": ready_to_execute,
                 "needs_fix": False,  # TODO: Detect test failures
             }
             statuses.append(status)
 
         return statuses
+
+    async def _move_card_with_broadcast(
+        self,
+        card_id: str,
+        to_column: str,
+        card_repo: CardRepository
+    ) -> tuple[Optional[Card], Optional[str]]:
+        """Move a card and broadcast the change via WebSocket."""
+        # Get current card state before move
+        card = await card_repo.get_by_id(card_id)
+        if not card:
+            return None, "Card not found"
+
+        from_column = card.column_id
+
+        # Perform the move
+        card, error = await card_repo.move(card_id, to_column)
+        if error:
+            return None, error
+
+        # Broadcast via WebSocket
+        try:
+            from .card_ws import card_ws_manager
+            from ..schemas.card import CardResponse
+
+            card_response = CardResponse.model_validate(card)
+            card_dict = card_response.model_dump(by_alias=True, mode='json')
+            await card_ws_manager.broadcast_card_moved(
+                card_id=card_id,
+                from_column=from_column,
+                to_column=to_column,
+                card_data=card_dict
+            )
+        except Exception as e:
+            # Don't fail the move if broadcast fails
+            logger.warning(f"Failed to broadcast card move: {e}")
+
+        return card, None
 
     # ==================== PUBLIC API ====================
 
@@ -627,22 +932,28 @@ class OrchestratorService:
         source_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Submit a new goal to the orchestrator."""
-        goal = await self.goal_repo.create(
-            description=description,
-            source=source,
-            source_id=source_id,
-        )
+        # Get fresh session for this operation
+        session_factory = self._get_session_factory()
 
-        await self.logger.log_info(
-            f"New goal submitted: {description[:50]}...",
-            goal_id=goal.id
-        )
+        async with session_factory() as session:
+            goal_repo = GoalRepository(session)
+            goal = await goal_repo.create(
+                description=description,
+                source=source,
+                source_id=source_id,
+            )
+            await session.commit()
 
-        return {
-            "id": goal.id,
-            "description": goal.description,
-            "status": goal.status.value,
-        }
+            await self.logger.log_info(
+                f"New goal submitted: {description[:50]}...",
+                goal_id=goal.id
+            )
+
+            return {
+                "id": goal.id,
+                "description": goal.description,
+                "status": goal.status.value,
+            }
 
     def get_status(self) -> Dict[str, Any]:
         """Get orchestrator status."""
@@ -651,7 +962,6 @@ class OrchestratorService:
             "loop_interval_seconds": self.settings.orchestrator_loop_interval_seconds,
             "usage_limit_percent": self.settings.orchestrator_usage_limit_percent,
             "last_usage_check": self._last_usage_check.__dict__ if self._last_usage_check else None,
-            "memory_health": self.memory.health_check(),
         }
 
 
@@ -659,9 +969,13 @@ class OrchestratorService:
 _orchestrator_service: Optional[OrchestratorService] = None
 
 
-def get_orchestrator_service(session: AsyncSession) -> OrchestratorService:
-    """Get or create orchestrator service."""
+def get_orchestrator_service(session: Optional[AsyncSession] = None) -> OrchestratorService:
+    """Get or create orchestrator service.
+
+    Note: session parameter is kept for backward compatibility but is no longer used.
+    The service now obtains fresh sessions from db_manager for each operation.
+    """
     global _orchestrator_service
     if _orchestrator_service is None:
-        _orchestrator_service = OrchestratorService(session)
+        _orchestrator_service = OrchestratorService()
     return _orchestrator_service

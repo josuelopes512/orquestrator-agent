@@ -149,16 +149,16 @@ class QdrantService:
                 ]
             )
 
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=self._settings.collection_name,
-            query_vector=vector,
+            query=vector,
             query_filter=query_filter,
             limit=limit,
             score_threshold=score_threshold,
         )
 
         learnings = []
-        for result in results:
+        for result in results.points:
             learnings.append({
                 "id": result.id,
                 "score": result.score,
