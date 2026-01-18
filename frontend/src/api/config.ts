@@ -1,15 +1,33 @@
 /**
  * Configuração centralizada de APIs
  */
-export const API_CONFIG = {
-  // URL base do backend - usar variável de ambiente ou padrão
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:3001',
+const getBaseUrl = () => {
+  // Se tem variável de ambiente, usar ela
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Em produção (não localhost), usar a mesma origem
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    return `${window.location.protocol}//${window.location.host}`;
+  }
+  // Default para desenvolvimento
+  return 'http://localhost:3001';
+};
 
-  // URL base do WebSocket - usar variável de ambiente ou derivar da BASE_URL
-  WS_URL: import.meta.env.VITE_WS_URL || (() => {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-    return baseUrl.replace(/^http/, 'ws');
-  })(),
+const getWsUrl = () => {
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+  const baseUrl = getBaseUrl();
+  return baseUrl.replace(/^http/, 'ws');
+};
+
+export const API_CONFIG = {
+  // URL base do backend
+  BASE_URL: getBaseUrl(),
+
+  // URL base do WebSocket
+  WS_URL: getWsUrl(),
 
   // Timeouts padrão
   TIMEOUT: 30000,
