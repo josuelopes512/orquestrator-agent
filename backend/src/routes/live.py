@@ -369,10 +369,11 @@ async def start_live_mode(db: AsyncSession = Depends(get_db)):
 
     # Submit as a new goal
     try:
-        goal_id = await orchestrator.submit_goal(
+        result = await orchestrator.submit_goal(
             description=prompt,
-            priority=10  # High priority
+            source="live_mode"
         )
+        goal_id = result.get("goal_id") if isinstance(result, dict) else str(result)
 
         _live_mode_active = True
 
